@@ -1,1 +1,33 @@
-pshpshpsh
+{% load static %}
+<!doctype html>
+<html>
+	<head>
+		<title>PolpettaCloud</title>
+		
+		<link rel="stylesheet" href="{% static "cloud/style.css" %}">
+		<script type = "text/javascript" src = "{% static "cloud/jquery-3.2.1.min.js" %}"></script>
+		<script type = "text/javascript" src = "{% static "cloud/cloud.js" %}"></script>
+	</head>
+	<body>
+		<div id="buttons">
+			<button id="delete" type="button">Delete</button>
+			<button id="rename" type="button">Rename</button>
+			<button id="create-folder" type="button">Create Folder</button>
+			<button id="move" type="button">Move</button>
+			<button id="upload" type="button">Upload</button>
+		</div>
+		<div id="table-container">
+			<table id="table-files">
+				<thead>
+					<tr>
+						<th>Name</th>
+						<th>Size</th>
+						<th>Last Modification</th>
+					</tr>
+				</thead>
+				<tbody>
+				</tbody>
+			</table>
+		</div>
+	</body>
+</html>
