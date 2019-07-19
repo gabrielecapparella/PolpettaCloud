@@ -6,14 +6,22 @@
 		
 		<link rel="stylesheet" href="{% static "cloud/style.css" %}">
 		<script type = "text/javascript" src = "{% static "cloud/jquery-3.2.1.min.js" %}"></script>
+		<script type = "text/javascript"> var current_folder = '{{folder}}';</script>
 		<script type = "text/javascript" src = "{% static "cloud/cloud.js" %}"></script>
 	</head>
 	<body>
 		<div id="buttons">
-			<button id="delete" type="button">Delete</button>
-			<button id="rename" type="button">Rename</button>
+			<button id="parent" type="button" disabled>Parent</button>
+			<button id="delete" type="button" disabled>Delete</button>
+			<button id="rename" type="button" disabled>Rename</button>
 			<button id="create-folder" type="button">Create Folder</button>
-			<button id="move" type="button">Move</button>
+			<button id="copy" type="button" disabled>Copy</button>
+			<button id="cut" type="button" disabled>Cut</button>
+			{% if 'clipboard' in request.session %}
+			<button id="paste" type="button">Paste</button>
+			{% else %}
+			<button id="paste" type="button" disabled>Paste</button>
+			{% endif %}
 			<button id="upload" type="button">Upload</button>
 		</div>
 		<div id="table-container">

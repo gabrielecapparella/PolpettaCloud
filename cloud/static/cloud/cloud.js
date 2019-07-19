@@ -1,21 +1,17 @@
 $(document).ready(function() {
-	var current_folder = '';
 	var selected_entry;
 
-	$.ajax({
-		type: "POST",
-		url: "/cloud/get-folder",
-		data: {
-		  'folder': ''
-		},
-		success: fill_table
+	open_folder(current_folder);
+
+	$('#parent').click(function(){
+		open_folder(current_folder.replace(/[^/]+\/$/, ''));
 	});
 
 	$('#delete').click(function(){
 		if (!selected_entry) return;
-		$.ajax({ url: '/delete',
+		$.ajax({
+			url: '/cloud/delete',
 			type: 'POST',
-			contentType: 'application/json',
 			data: {
 				'folder': current_folder,
 				'path': selected_entry
@@ -29,13 +25,13 @@ $(document).ready(function() {
 		var new_name = prompt("New name:", selected_entry);
 		// should do checks on new_name
 		if (new_name != null && new_name != "") {
-			$.ajax({ url: '/rename',
+			$.ajax({
+				url: '/cloud/rename',
 				type: 'POST',
-				contentType: 'application/json',
 				data: {
 					'folder': current_folder,
 					'old_path': selected_entry,
-					'new_path': current_folder.concat(new_name)
+					'new_path': current_folder+new_name
 				},
 				success: fill_table
 			});
@@ -45,9 +41,9 @@ $(document).ready(function() {
 	$('#create-folder').click(function(){
 		var name = prompt("Folder name:", "polpetta");
 		if (name != null && name != "") {
-			$.ajax({ url: '/create-folder',
+			$.ajax({
+				url: '/cloud/create-folder',
 				type: 'POST',
-				contentType: 'application/json',
 				data: {
 					'folder': current_folder,
 					'name': name
@@ -57,20 +53,84 @@ $(document).ready(function() {
 		}
 	});
 
+	$('#copy').click(function(){
+		$.ajax({
+			url: '/cloud/copy',
+			type: 'POST',
+			data: {
+				'path': current_folder+selected_entry
+			},
+			success: function(data) {
+				$('#paste').prop('disabled', false);
+			}
+		});
+
+	});
+
+	$('#cut').click(function(){
+		$.ajax({
+			url: '/cloud/cut',
+			type: 'POST',
+			data: {
+				'path': current_folder+selected_entry
+			},
+			success: function(data) {
+				$('#paste').prop('disabled', false);
+			}
+		});
+
+	});
+
+	$('#paste').click(function(){
+		$.ajax({ url: '/cloud/paste',
+			type: 'POST',
+			data: {
+				'folder': current_folder
+			},
+			success: fill_table
+		});
+
+	});
+
 	function fill_table(entries) {
 		content = '';
 		entries.forEach(function(entry) {
 			content += '<tr>';
-			content += '<td class="entry-name">'+entry[0]+'</td>';
-			content += '<td>'+entry[1]+'</td>';
-			content += '<td>'+entry[2]+'</td>';
+			content += '<td class="entry-name type-'+entry['type']+'">'+entry['name']+'</td>';
+			content += '<td>'+entry['size']+'</td>';
+			content += '<td>'+entry['last_mod']+'</td>';
 			content += '</tr>';
 		});
 		$('#table-files tbody').html(content);
-		$('#table-files tbody tr').unbind("click").click( function () {
-			selected_entry = current_folder.concat($(this).find(".entry-name").text());
-			$('#table-files>tbody>tr').removeClass('checked-table-row');
-			$(this).addClass('checked-table-row');
+	}
+
+	function open_folder(path) {
+		current_folder = path;
+		$.ajax({
+			type: "POST",
+			url: "/cloud/get-folder",
+			data: {
+			  'folder': path
+			},
+			success: function(data) {
+				fill_table(data);
+				$('#table-files tbody tr').unbind("click").click( function () {
+					selected_entry = current_folder+$(this).find(".entry-name").text();
+					$('#table-files>tbody>tr').removeClass('checked-table-row');
+					$(this).addClass('checked-table-row');
+		
+					$('#copy').prop('disabled', false);
+					$('#cut').prop('disabled', false);
+					$('#delete').prop('disabled', false);
+					$('#rename').prop('disabled', false);
+				});
+		
+				$('.entry-name.type-dir').unbind("dblclick").dblclick(function() {
+					open_folder(selected_entry+'/');
+				});
+				
+				$('#parent').prop('disabled', !current_folder);
+			}
 		});
 	}
 

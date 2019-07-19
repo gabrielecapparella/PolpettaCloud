@@ -3,17 +3,28 @@ from django.http import JsonResponse, HttpResponse, Http404
 from django.conf import settings
 import os
 from datetime import datetime
+from shutil import copy as sh_copy
 
-def index(request):
-	return render(request, 'cloud/index.html')
+def index(request, folder = ''):
+	print(folder)
+	return render(request, 'cloud/index.html', {'folder':folder})
 
 def get_folder(request):
-	folder = os.path.join(settings.ROOT_PATH, request.POST['folder'])
-	files = scan_folder(folder)
+	try:
+		folder = os.path.join(settings.ROOT_PATH, request.POST['folder'])
+	except KeyError:
+		return HttpResponse(status=400)
+	
+	try:
+		files = scan_folder(folder)
+	except OSError:
+		return HttpResponse(status=422)
+
 	return JsonResponse(files, safe=False)
 
 def delete(request): #what if it has to delete a folder
 	try:
+		print(request.POST.keys())
 		folder = os.path.join(settings.ROOT_PATH, request.POST['folder'])
 		old = os.path.join(settings.ROOT_PATH, request.POST['path'])
 		new = os.path.join(settings.TRASH_PATH, os.path.basename(request.POST['path']))
@@ -25,7 +36,7 @@ def delete(request): #what if it has to delete a folder
 	try:
 		os.rename(old, new)
 	except OSError:
-		return HttpResponse(status=400)
+		return HttpResponse(status=422)
 
 	# manage trash
 
@@ -37,9 +48,12 @@ def rename(request):
 		folder = os.path.join(settings.ROOT_PATH, request.POST['folder'])
 		old = os.path.join(settings.ROOT_PATH, request.POST['old_path'])
 		new = os.path.join(settings.ROOT_PATH, request.POST['new_path'])
-		os.rename(old, new)
-	except (KeyError, OSError):
+	except KeyError:
 		return HttpResponse(status=400)
+	
+	try: os.rename(old, new)
+	except OSError: return HttpResponse(status=422)
+
 	files = scan_folder(folder)
 	return JsonResponse(files, safe=False)
 
@@ -53,17 +67,44 @@ def create_folder(request):
 	files = scan_folder(folder)
 	return JsonResponse(files, safe=False)
 
-
-def move(request): #TODO
+def copy(request):
 	try:
-		folder = os.path.join(settings.ROOT_PATH, request.POST['folder'])
-		old_path = request.POST['old_path']
-		new_path = request.POST['new_path']
-
+		path = os.path.join(settings.ROOT_PATH, request.POST['path'])
 	except KeyError:
-		raise Http404("Path not found")
+		return HttpResponse(status=400)
+	request.session['clipboard'] = path
+	request.session['clipboard_mode'] = 'copy'
+	return HttpResponse(status=204)
 
-	return HttpResponse('ok') #should return updated files	
+def cut(request):
+	try:
+		path = os.path.join(settings.ROOT_PATH, request.POST['path'])
+	except KeyError:
+		return HttpResponse(status=400)
+	request.session['clipboard'] = path
+	request.session['clipboard_mode'] = 'cut'
+	return HttpResponse(status=204)
+
+def paste(request):
+	try:
+		destination = os.path.join(settings.ROOT_PATH, request.POST['folder'])
+		old_path = request.session['clipboard']
+	except KeyError:
+		return HttpResponse(status=400)
+	new_path = os.path.join(destination, os.path.basename(old_path))
+
+	try:
+		if request.session['clipboard_mode'] == 'cut':
+			os.rename(old_path, new_path)
+			del request.session['clipboard']
+			del request.session['clipboard_mode']
+		elif request.session['clipboard_mode'] == 'copy':
+			sh_copy(old_path, new_path)
+	except OSError:
+		return HttpResponse(status=422)
+
+	files = scan_folder(destination)
+	return JsonResponse(files, safe=False)
 
 def upload_file(request):
 	uploaded_file  = request.FILES['file']
@@ -79,11 +120,12 @@ def upload_folder(request):
 def scan_folder(path):
 	files = []
 	for entry in os.scandir(path):
-		files.append([
-			entry.name,
-			readable_size(get_size(entry)),
-			get_last_mod(entry)
-		])
+		files.append({
+			'type': 'dir' if entry.is_dir() else 'file',
+			'name': entry.name,
+			'size': readable_size(get_size(entry)),
+			'last_mod': get_last_mod(entry)
+		})
 	return files
 
 def get_size(entry): 
