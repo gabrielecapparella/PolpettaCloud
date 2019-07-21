@@ -24,87 +24,97 @@ def get_folder(request):
 
 def delete(request): #what if it has to delete a folder
 	try:
-		print(request.POST.keys())
 		folder = os.path.join(settings.ROOT_PATH, request.POST['folder'])
-		old = os.path.join(settings.ROOT_PATH, request.POST['path'])
-		new = os.path.join(settings.TRASH_PATH, os.path.basename(request.POST['path']))
+		for path in os.path.join(settings.ROOT_PATH, request.POST['to_delete[]']):
+			old = os.path.join(settings.ROOT_PATH, path)
+			new = os.path.join(settings.TRASH_PATH, os.path.basename(path))
+			while(os.path.exists(new)): new += '.copy'
+			os.rename(old, new)
+
+		# manage trash
+		files = scan_folder(folder)
+		return JsonResponse(files, safe=False)
+
 	except KeyError:
 		return HttpResponse(status=400)
 
-	while(os.path.exists(new)): new += '.copy'
-		
-	try:
-		os.rename(old, new)
 	except OSError:
 		return HttpResponse(status=422)
-
-	# manage trash
-
-	files = scan_folder(folder)
-	return JsonResponse(files, safe=False)
 
 def rename(request):
 	try:
 		folder = os.path.join(settings.ROOT_PATH, request.POST['folder'])
 		old = os.path.join(settings.ROOT_PATH, request.POST['old_path'])
 		new = os.path.join(settings.ROOT_PATH, request.POST['new_path'])
+		while(os.path.exists(new)): new += '.copy'
+		os.rename(old, new)
+
+		files = scan_folder(folder)
+		return JsonResponse(files, safe=False)
+		
+	except OSError:
+		return HttpResponse(status=422)
+		
 	except KeyError:
 		return HttpResponse(status=400)
-	
-	try: os.rename(old, new)
-	except OSError: return HttpResponse(status=422)
-
-	files = scan_folder(folder)
-	return JsonResponse(files, safe=False)
 
 def create_folder(request):
 	try:
 		folder = os.path.join(settings.ROOT_PATH, request.POST['folder'])
 		full_path = os.path.join(folder, request.POST['name'])
 		os.makedirs(full_path)
-	except (KeyError, FileExistsError):
+
+		files = scan_folder(folder)
+		return JsonResponse(files, safe=False)
+
+	except OSError:
+		return HttpResponse(status=422)
+		
+	except KeyError:
 		return HttpResponse(status=400)
-	files = scan_folder(folder)
-	return JsonResponse(files, safe=False)
 
 def copy(request):
 	try:
-		path = os.path.join(settings.ROOT_PATH, request.POST['path'])
+		paths = []
+		for path in request.POST.getlist('to_copy[]'):
+			print('path', path)
+			paths.append(os.path.join(settings.ROOT_PATH, path))
 	except KeyError:
 		return HttpResponse(status=400)
-	request.session['clipboard'] = path
+	request.session['clipboard'] = paths
 	request.session['clipboard_mode'] = 'copy'
 	return HttpResponse(status=204)
 
 def cut(request):
 	try:
-		path = os.path.join(settings.ROOT_PATH, request.POST['path'])
+		paths = []
+		for path in request.POST.getlist('to_cut[]'):
+			paths.append(os.path.join(settings.ROOT_PATH, path))
 	except KeyError:
 		return HttpResponse(status=400)
-	request.session['clipboard'] = path
+	request.session['clipboard'] = paths
 	request.session['clipboard_mode'] = 'cut'
 	return HttpResponse(status=204)
 
 def paste(request):
 	try:
 		destination = os.path.join(settings.ROOT_PATH, request.POST['folder'])
-		old_path = request.session['clipboard']
+		mode = request.session['clipboard_mode']
+		for path in request.session['clipboard']:
+			new_path = os.path.join(destination, os.path.basename(path))
+			while(os.path.exists(new_path)): new_path += '.copy'
+			if mode == 'cut': os.rename(path, new_path)
+			elif mode == 'copy': sh_copy(path, new_path)
+		if mode == 'cut': del request.session['clipboard']
+		files = scan_folder(destination)
+		return JsonResponse(files, safe=False)
+
 	except KeyError:
 		return HttpResponse(status=400)
-	new_path = os.path.join(destination, os.path.basename(old_path))
 
-	try:
-		if request.session['clipboard_mode'] == 'cut':
-			os.rename(old_path, new_path)
-			del request.session['clipboard']
-			del request.session['clipboard_mode']
-		elif request.session['clipboard_mode'] == 'copy':
-			sh_copy(old_path, new_path)
-	except OSError:
+	except OSError as e:
+		print(e)
 		return HttpResponse(status=422)
-
-	files = scan_folder(destination)
-	return JsonResponse(files, safe=False)
 
 def upload_file(request):
 	uploaded_file  = request.FILES['file']

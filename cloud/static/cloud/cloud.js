@@ -1,5 +1,10 @@
+document.onselectstart = function() {
+    return false;
+}
+
 $(document).ready(function() {
-	var selected_entry;
+	var selected_entries = [];
+	var last_selected_index = -1;
 
 	open_folder(current_folder);
 
@@ -8,21 +13,21 @@ $(document).ready(function() {
 	});
 
 	$('#delete').click(function(){
-		if (!selected_entry) return;
+		if (!selected_entries.length) return;
 		$.ajax({
 			url: '/cloud/delete',
 			type: 'POST',
 			data: {
 				'folder': current_folder,
-				'path': selected_entry
+				'to_delete': selected_entries
 			},
 			success: fill_table
 		});
 	});
 
 	$('#rename').click(function(){
-		if (!selected_entry) return;
-		var new_name = prompt("New name:", selected_entry);
+		if (selected_entries.length!=1) return;
+		var new_name = prompt("New name:", selected_entries[0]);
 		// should do checks on new_name
 		if (new_name != null && new_name != "") {
 			$.ajax({
@@ -30,7 +35,7 @@ $(document).ready(function() {
 				type: 'POST',
 				data: {
 					'folder': current_folder,
-					'old_path': selected_entry,
+					'old_path': selected_entries[0],
 					'new_path': current_folder+new_name
 				},
 				success: fill_table
@@ -54,11 +59,12 @@ $(document).ready(function() {
 	});
 
 	$('#copy').click(function(){
+		if (!selected_entries.length) return;
 		$.ajax({
 			url: '/cloud/copy',
 			type: 'POST',
 			data: {
-				'path': current_folder+selected_entry
+				'to_copy[]': selected_entries
 			},
 			success: function(data) {
 				$('#paste').prop('disabled', false);
@@ -68,11 +74,12 @@ $(document).ready(function() {
 	});
 
 	$('#cut').click(function(){
+		if (!selected_entries.length) return;
 		$.ajax({
 			url: '/cloud/cut',
 			type: 'POST',
 			data: {
-				'path': current_folder+selected_entry
+				'to_cut': selected_entries
 			},
 			success: function(data) {
 				$('#paste').prop('disabled', false);
@@ -93,6 +100,9 @@ $(document).ready(function() {
 	});
 
 	function fill_table(entries) {
+		selected_entries = [];
+		last_selected = null;
+
 		content = '';
 		entries.forEach(function(entry) {
 			content += '<tr>';
@@ -102,6 +112,41 @@ $(document).ready(function() {
 			content += '</tr>';
 		});
 		$('#table-files tbody').html(content);
+		$('#table-files tbody tr').unbind("click").click( function(event) {
+			console.log(event.shiftKey);
+			console.log(last_selected_index);
+			if (event.ctrlKey) {
+				$(this).toggleClass('checked-table-row');
+				last_selected_index = $(this).index();
+			} else if (event.shiftKey && last_selected_index>-1) {
+				indexes = [$(this).index(), last_selected_index];
+				indexes.sort(function(a, b){return a-b});
+				for (var i = indexes[0]; i <= indexes[1]; i++) {
+					$('#table-files tbody tr').eq(i).addClass('checked-table-row');
+				}
+				last_selected_index = -1;
+			} else {
+				$('#table-files>tbody>tr').removeClass('checked-table-row');
+				$(this).addClass('checked-table-row');
+				last_selected_index = $(this).index();
+			}
+
+			selected_entries = [];
+			$('.checked-table-row').each(function() {
+				selected_entries.push(current_folder+$(this).find(".entry-name").text());
+			});	
+
+			l = selected_entries.length
+			$('#copy').prop('disabled', !l);
+			$('#cut').prop('disabled', !l);
+			$('#delete').prop('disabled', !l);
+			$('#rename').prop('disabled', l!=1);
+			console.log(selected_entries);
+		});
+
+		$('.entry-name.type-dir').unbind("dblclick").dblclick(function() {
+			open_folder(selected_entries+'/');
+		});		
 	}
 
 	function open_folder(path) {
@@ -114,20 +159,6 @@ $(document).ready(function() {
 			},
 			success: function(data) {
 				fill_table(data);
-				$('#table-files tbody tr').unbind("click").click( function () {
-					selected_entry = current_folder+$(this).find(".entry-name").text();
-					$('#table-files>tbody>tr').removeClass('checked-table-row');
-					$(this).addClass('checked-table-row');
-		
-					$('#copy').prop('disabled', false);
-					$('#cut').prop('disabled', false);
-					$('#delete').prop('disabled', false);
-					$('#rename').prop('disabled', false);
-				});
-		
-				$('.entry-name.type-dir').unbind("dblclick").dblclick(function() {
-					open_folder(selected_entry+'/');
-				});
 				
 				$('#parent').prop('disabled', !current_folder);
 			}
