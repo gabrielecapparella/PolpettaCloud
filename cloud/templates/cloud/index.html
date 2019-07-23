@@ -10,32 +10,37 @@
 		<script type = "text/javascript" src = "{% static "cloud/cloud.js" %}"></script>
 	</head>
 	<body>
-		<div id="buttons">
-			<button id="parent" type="button" disabled>Parent</button>
-			<button id="delete" type="button" disabled>Delete</button>
-			<button id="rename" type="button" disabled>Rename</button>
-			<button id="create-folder" type="button">Create Folder</button>
-			<button id="copy" type="button" disabled>Copy</button>
-			<button id="cut" type="button" disabled>Cut</button>
-			{% if 'clipboard' in request.session %}
-			<button id="paste" type="button">Paste</button>
-			{% else %}
-			<button id="paste" type="button" disabled>Paste</button>
-			{% endif %}
-			<button id="upload" type="button">Upload</button>
+		<div class="column">
+			<div id="buttons">
+				<button id="parent" type="button" disabled>Parent</button>
+				<button id="delete" type="button" disabled>Delete</button>
+				<button id="rename" type="button" disabled>Rename</button>
+				<button id="create-folder" type="button">Create Folder</button>
+				<button id="copy" type="button" disabled>Copy</button>
+				<button id="cut" type="button" disabled>Cut</button>
+				{% if 'clipboard' in request.session %}
+				<button id="paste" type="button">Paste</button>
+				{% else %}
+				<button id="paste" type="button" disabled>Paste</button>
+				{% endif %}
+				<input id="upload-files" type="file" name="files" multiple>
+			</div>
+			<div id="table-container">
+				<table id="table-files">
+					<thead>
+						<tr>
+							<th>Name</th>
+							<th>Size</th>
+							<th>Last Modification</th>
+						</tr>
+					</thead>
+					<tbody>
+					</tbody>
+				</table>
+			</div>
 		</div>
-		<div id="table-container">
-			<table id="table-files">
-				<thead>
-					<tr>
-						<th>Name</th>
-						<th>Size</th>
-						<th>Last Modification</th>
-					</tr>
-				</thead>
-				<tbody>
-				</tbody>
-			</table>
+		<div class="column">
+
 		</div>
 	</body>
 </html>

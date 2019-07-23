@@ -99,6 +99,26 @@ $(document).ready(function() {
 
 	});
 
+	$('#upload-files').change(function () {
+		var fd = new FormData();
+		var files = $("#upload-files")[0].files;
+		for (i = 0; i < files.length; i++) {
+			fd.append('files[]', files[i]);
+		}
+		fd.append('folder', current_folder);
+
+		$.ajax({
+			url: '/cloud/upload-files',
+			type: 'POST',
+			data: fd,
+			cache: false,
+			contentType: false,
+			processData: false,
+			success: fill_table
+		});
+		$('#upload-files').val('');
+	});
+
 	function fill_table(entries) {
 		selected_entries = [];
 		last_selected = null;

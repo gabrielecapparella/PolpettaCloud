@@ -13,5 +13,6 @@ urlpatterns = [
 	path('create-folder', views.create_folder),
 	path('copy', views.copy),
 	path('cut', views.cut),
-	path('paste', views.paste)
+	path('paste', views.paste),
+	path('upload-files', views.upload_files)
 ]

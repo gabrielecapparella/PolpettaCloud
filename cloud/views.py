@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.http import JsonResponse, HttpResponse, Http404
 from django.conf import settings
+from django import forms
 import os
 from datetime import datetime
 from shutil import copy as sh_copy
@@ -116,13 +117,18 @@ def paste(request):
 		print(e)
 		return HttpResponse(status=422)
 
-def upload_file(request):
-	uploaded_file  = request.FILES['file']
+def upload_files(request):
+	# print(request.POST.keys())
+	# print(request.FILES.keys())
 	folder = os.path.join(settings.ROOT_PATH, request.POST['folder'])
-	full_path = os.path.join(folder, uploaded_file.name)
-	with open(full_path, 'wb+') as f:
-		for chunk in uploaded_file.chunks():
-			f.write(chunk)
+	for uploaded_file in request.FILES.getlist('files[]'):
+		full_path = os.path.join(folder, uploaded_file.name)
+		with open(full_path, 'wb+') as f:
+			for chunk in uploaded_file.chunks():
+				f.write(chunk)
+	files = scan_folder(folder)
+	return JsonResponse(files, safe=False)
+
 
 def upload_folder(request):
 	return HttpResponse('ok')

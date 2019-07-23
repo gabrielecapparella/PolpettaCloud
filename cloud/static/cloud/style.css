@@ -1,3 +1,7 @@
 .checked-table-row {
 	background-color: Lavender;
 }
+
+.type-dir {
+	text-decoration: underline;
+}
