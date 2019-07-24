@@ -10,7 +10,14 @@
 		<script type = "text/javascript" src = "{% static "cloud/cloud.js" %}"></script>
 	</head>
 	<body>
-		<div class="column">
+		<header>-</header>
+		<div id="menu" class="column">
+				<input id="upload-files-hidden" type="file" name="files" multiple>
+				<input id="upload-folder-hidden" type="file" name="files" multiple>
+				<button id="upload-files" type="button">Upload Files</button>
+				<button id="upload-folder" type="button">Upload Folder</button>
+		</div>
+		<div id="main" class="column">
 			<div id="buttons">
 				<button id="parent" type="button" disabled>Parent</button>
 				<button id="delete" type="button" disabled>Delete</button>
@@ -23,7 +30,7 @@
 				{% else %}
 				<button id="paste" type="button" disabled>Paste</button>
 				{% endif %}
-				<input id="upload-files" type="file" name="files" multiple>
+				<button id="download" type="button" disabled>Download</button>
 			</div>
 			<div id="table-container">
 				<table id="table-files">
@@ -39,7 +46,27 @@
 				</table>
 			</div>
 		</div>
-		<div class="column">
+		<div id="info" class="column">
+			<div id="info-name">test</div>
+			<div id="info-img">
+				<img src="">
+			</div>
+			<div id="info-size">
+				Size: -
+			</div>
+			<div id="info-notes" class="row">
+				<textarea></textarea>
+			</div>
+			<div id="info-synch">
+				<div class="row">
+					<div class="row-text">G Drive</div>
+					<div id="synch-drive">NOPE</div>
+				</div>
+				<div class="row">
+					<div class="row-text">G Photos</div>
+					<div id="synch-photos">NOPE</div>
+				</div>
+			</div>
 
 		</div>
 	</body>

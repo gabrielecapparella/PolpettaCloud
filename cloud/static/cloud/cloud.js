@@ -99,9 +99,13 @@ $(document).ready(function() {
 
 	});
 
-	$('#upload-files').change(function () {
+	$('#upload-files').click(function() {
+		$('#upload-files-hidden').trigger('click');
+	});
+
+	$('#upload-files-hidden').change(function () {
 		var fd = new FormData();
-		var files = $("#upload-files")[0].files;
+		var files = $("#upload-files-hidden")[0].files;
 		for (i = 0; i < files.length; i++) {
 			fd.append('files[]', files[i]);
 		}
@@ -116,7 +120,7 @@ $(document).ready(function() {
 			processData: false,
 			success: fill_table
 		});
-		$('#upload-files').val('');
+		$('#upload-files-hidden').val('');
 	});
 
 	function fill_table(entries) {
@@ -179,8 +183,8 @@ $(document).ready(function() {
 			},
 			success: function(data) {
 				fill_table(data);
-				
 				$('#parent').prop('disabled', !current_folder);
+				$('header').html('PolpettaCloud - /'+current_folder);
 			}
 		});
 	}

@@ -5,3 +5,75 @@
 .type-dir {
 	text-decoration: underline;
 }
+
+.column {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-content: center;
+	margin: 10px;
+	border-style: solid;
+	border-width: 1px;
+	padding: 10px;
+}
+
+.row {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	align-content: center;
+	margin: 10px;
+}
+
+.row-text {
+	width: 100px;
+}
+
+#info-size {
+	margin: 10px auto;
+}
+
+#info-name {
+	margin: 10px auto;
+	font-weight: bold;
+	font-size: 20px;
+}
+
+#info-notes > textarea {
+	width: 224px;
+}
+
+#menu {
+	width: 150px;
+}
+
+#info {
+	width: 250px;
+}
+
+body {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	justify-content: center;
+}
+
+header {
+	width: 100%;
+	text-align: center;
+	font-weight: bold;
+	font-size: 25px;
+	margin: 20px;
+}
+
+#info-img {
+	height: 150px;
+	width: 150px;
+	border-style: solid;
+	border-width: 1px;
+	margin: 10px auto;
+}
+
+#upload-files-hidden, #upload-folder-hidden {
+	display: none;
+}
