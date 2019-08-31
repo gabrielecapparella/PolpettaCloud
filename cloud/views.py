@@ -1,14 +1,54 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.http import JsonResponse, HttpResponse, Http404
 from django.conf import settings
 from django import forms
+import google.oauth2.credentials
+import google_auth_oauthlib.flow
+from googleapiclient.discovery import build
 import os
 from datetime import datetime
 from shutil import copy as sh_copy
+import json
 
 def index(request, folder = ''):
 	print(folder)
 	return render(request, 'cloud/index.html', {'folder':folder})
+
+def google_consent(request):
+	flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
+		'/home/gabriele/Desktop/client_secret.json', 
+		scopes=['https://www.googleapis.com/auth/photoslibrary'])
+	flow.redirect_uri = 'http://localhost:8000/cloud/oauth2callback'
+	authorization_url, state = flow.authorization_url(
+		access_type='offline',
+		include_granted_scopes='true')
+	with open("code_verifier", 'w') as f:
+		f.write(flow.code_verifier)
+	return redirect(authorization_url)
+
+def oauth2_callback(request):
+	flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
+		'/home/gabriele/Desktop/client_secret.json', 
+		scopes=None)
+	with open("code_verifier", 'r') as f:
+		flow.code_verifier = f.read()
+	flow.redirect_uri = 'http://localhost:8000/cloud/oauth2callback'
+	flow.fetch_token(code=request.GET['code'])
+	# ACTION ITEM: In a production app, you likely want to save these
+	#              credentials in a persistent database instead.
+
+	with open("credentials.json", 'w') as f:
+		json.dump(credentials_to_dict(flow.credentials), f)
+
+	return HttpResponse(status=204)
+
+def credentials_to_dict(credentials):
+  return {'token': credentials.token,
+          'refresh_token': credentials.refresh_token,
+          'token_uri': credentials.token_uri,
+          'client_id': credentials.client_id,
+          'client_secret': credentials.client_secret,
+          'scopes': credentials.scopes}
 
 def get_folder(request):
 	try:
@@ -18,7 +58,9 @@ def get_folder(request):
 	
 	try:
 		files = scan_folder(folder)
-	except OSError:
+	except OSError as e:
+		print(e)
+		print(os.getcwd())
 		return HttpResponse(status=422)
 
 	return JsonResponse(files, safe=False)

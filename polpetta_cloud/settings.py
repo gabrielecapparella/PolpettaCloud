@@ -25,7 +25,6 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -36,9 +35,11 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'cloud',
+	'corsheaders'
 ]
 
 MIDDLEWARE = [
+	'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -118,5 +119,9 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-ROOT_PATH = '/home/gabriele/Desktop/cloud_root'
-TRASH_PATH = '/home/gabriele/Desktop/cloud_trash'
+ROOT_PATH = 'cloud/cloud_root'
+TRASH_PATH = 'cloud/cloud_trash'
+
+APP_CLIENT_ID = '955598460384-lcpa2cqi613dfbpfbncb10tmuu2mpf2v.apps.googleusercontent.com'
+
+CORS_ORIGIN_ALLOW_ALL = True
