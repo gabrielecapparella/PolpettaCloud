@@ -3,3 +3,4 @@ __pycache__/
 .vscode/
 cloud_root/
 cloud_trash/
+db.sqlite3

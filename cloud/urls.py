@@ -6,7 +6,10 @@ from . import google_api
 app_name = 'cloud'
 #path('', views.index),
 urlpatterns = [
-	path('', views.index),
+	path('', views.index, name='cloud_index'),
+	path('login-action/', views.login_action),
+	path('login/', views.login_user),
+
 	path('google-consent', views.google_consent),
 	path('oauth2callback', views.oauth2_callback),
 	path('-/<path:folder>/', views.index),

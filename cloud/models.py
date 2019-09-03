@@ -1,3 +1,6 @@
 from django.db import models
+from django.contrib.auth.models import AbstractUser
 
-# Create your models here.
+class CloudUser(AbstractUser):
+	root_path = models.CharField(max_length=32)
+	trash_path = models.CharField(max_length=32)

@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+	#'cloud.apps.CloudConfig',
     'cloud',
 	'corsheaders'
 ]
@@ -125,3 +126,7 @@ TRASH_PATH = 'cloud/cloud_trash'
 APP_CLIENT_ID = '955598460384-lcpa2cqi613dfbpfbncb10tmuu2mpf2v.apps.googleusercontent.com'
 
 CORS_ORIGIN_ALLOW_ALL = True
+
+LOGIN_URL = '/cloud/login'
+
+AUTH_USER_MODEL = 'cloud.CloudUser'
