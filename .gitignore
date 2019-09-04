@@ -4,3 +4,5 @@ __pycache__/
 cloud_root/
 cloud_trash/
 db.sqlite3
+credentials.json
+code_verifier

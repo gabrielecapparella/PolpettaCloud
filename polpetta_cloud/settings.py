@@ -120,11 +120,6 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-ROOT_PATH = 'cloud/cloud_root'
-TRASH_PATH = 'cloud/cloud_trash'
-
-APP_CLIENT_ID = '955598460384-lcpa2cqi613dfbpfbncb10tmuu2mpf2v.apps.googleusercontent.com'
-
 CORS_ORIGIN_ALLOW_ALL = True
 
 LOGIN_URL = '/cloud/login'

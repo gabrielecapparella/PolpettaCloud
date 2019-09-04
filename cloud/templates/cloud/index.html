@@ -14,6 +14,7 @@
 	<body>
 		<header>-</header>
 		<div id="menu" class="column">
+			<div>Hi, {{ user.get_username }}</div>
 				<input id="upload-files-hidden" type="file" name="files" multiple>
 				<input id="upload-folder-hidden" type="file" name="files" multiple>
 				<button id="upload-files" type="button">Upload Files</button>
@@ -75,7 +76,7 @@
 			</div>
 		</div>
 		<div id="info" class="column">
-			<div id="info-name">test</div>
+			<div id="info-name">-</div>
 			<div id="info-img">
 				<img src="">
 			</div>

@@ -30,6 +30,7 @@ def login_action(request):
 def login_user(request):
 	return render(request, 'cloud/login.html')	
 
+@login_required
 def google_consent(request):
 	flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
 		'/home/gabriele/Desktop/client_secret.json', 
@@ -50,8 +51,6 @@ def oauth2_callback(request):
 		flow.code_verifier = f.read()
 	flow.redirect_uri = 'http://localhost:8000/cloud/oauth2callback'
 	flow.fetch_token(code=request.GET['code'])
-	# ACTION ITEM: In a production app, you likely want to save these
-	#              credentials in a persistent database instead.
 
 	with open("credentials.json", 'w') as f:
 		json.dump(credentials_to_dict(flow.credentials), f)
@@ -66,9 +65,12 @@ def credentials_to_dict(credentials):
           'client_secret': credentials.client_secret,
           'scopes': credentials.scopes}
 
+@login_required
 def get_folder(request):
+	root = request.user.root_path
+	print("get_folder", root)
 	try:
-		folder = os.path.join(settings.ROOT_PATH, request.POST['folder'])
+		folder = os.path.join(root, request.POST['folder'])
 	except KeyError:
 		return HttpResponse(status=400)
 	
@@ -81,6 +83,7 @@ def get_folder(request):
 
 	return JsonResponse(files, safe=False)
 
+@login_required
 def delete(request): #what if it has to delete a folder
 	try:
 		folder = os.path.join(settings.ROOT_PATH, request.POST['folder'])
@@ -100,6 +103,7 @@ def delete(request): #what if it has to delete a folder
 	except OSError:
 		return HttpResponse(status=422)
 
+@login_required
 def rename(request):
 	try:
 		folder = os.path.join(settings.ROOT_PATH, request.POST['folder'])
@@ -117,6 +121,7 @@ def rename(request):
 	except KeyError:
 		return HttpResponse(status=400)
 
+@login_required
 def create_folder(request):
 	try:
 		folder = os.path.join(settings.ROOT_PATH, request.POST['folder'])
@@ -132,6 +137,7 @@ def create_folder(request):
 	except KeyError:
 		return HttpResponse(status=400)
 
+@login_required
 def copy(request):
 	try:
 		paths = []
@@ -144,6 +150,7 @@ def copy(request):
 	request.session['clipboard_mode'] = 'copy'
 	return HttpResponse(status=204)
 
+@login_required
 def cut(request):
 	try:
 		paths = []
@@ -155,6 +162,7 @@ def cut(request):
 	request.session['clipboard_mode'] = 'cut'
 	return HttpResponse(status=204)
 
+@login_required
 def paste(request):
 	try:
 		destination = os.path.join(settings.ROOT_PATH, request.POST['folder'])
@@ -175,6 +183,7 @@ def paste(request):
 		print(e)
 		return HttpResponse(status=422)
 
+@login_required
 def upload_files(request):
 	# print(request.POST.keys())
 	# print(request.FILES.keys())
@@ -187,8 +196,8 @@ def upload_files(request):
 	files = scan_folder(folder)
 	return JsonResponse(files, safe=False)
 
-
-def upload_folder(request):
+@login_required
+def upload_folder(request): # TODO
 	return HttpResponse('ok')
 
 def scan_folder(path):

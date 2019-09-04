@@ -7,9 +7,12 @@ from .forms import CustomUserCreationForm, CustomUserChangeForm
 from .models import CloudUser
 
 class CustomUserAdmin(UserAdmin):
-    add_form = CustomUserCreationForm
-    form = CustomUserChangeForm
-    model = CloudUser
-    list_display = ['email', 'username',]
+	add_form = CustomUserCreationForm
+	form = CustomUserChangeForm
+	model = CloudUser
+	list_display = ['username', 'email', 'root_path', 'trash_path']
+	fieldsets = (
+		(('User'), {'fields': ('username', 'email', 'root_path', 'trash_path')}),
+	)
 
 admin.site.register(CloudUser, CustomUserAdmin)
