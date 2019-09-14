@@ -3,8 +3,33 @@ import google_auth_oauthlib.flow
 from googleapiclient.discovery import build
 import json
 from django.http import JsonResponse, HttpResponse
+from cloud.models import GoogleSync
+from os.path import basename, join
+import requests
 
-def list_photos(request):
+def check_gphotos_soft(request):
+	local_photos = GoogleSync.objects.filter(
+		user=request.user, gphotos=True, is_dir=False
+		).only("path")
+
+	local_photos = [basename(photo.path) for photo in local_photos]
+	remote_photos = list_photos()
+
+	for photo in remote_photos:
+		if not photo["filename"] in local_photos: # perhaps I should use google id
+			print('downloading ', photo["filename"])
+			req = requests.get(photo["baseUrl"])
+			if req.status_code==200:
+				dest = join(request.user.root_path, photo["filename"])
+				with open(dest, 'wb') as f:
+					f.write(req.content)
+
+	return HttpResponse(status=204)
+	
+
+
+
+def list_photos():
 	with open("credentials.json", 'r') as f:
 		credentials = google.oauth2.credentials.Credentials(**json.load(f))
 	s = build('photoslibrary', 'v1', credentials=credentials)
@@ -20,7 +45,7 @@ def list_photos(request):
 	with open("list_photos_out.json", 'w') as f:
 		json.dump(result, f, indent=4)
 	
-	return HttpResponse(status=204)
+	return result
 
 def list_albums(request):
 	with open("credentials.json", 'r') as f:

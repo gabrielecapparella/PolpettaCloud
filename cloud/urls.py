@@ -22,7 +22,9 @@ urlpatterns = [
 	path('paste', views.paste),
 	path('upload-files', views.upload_files),
 
-	path('list-photos', google_api.list_photos),
-	path('list-albums', google_api.list_albums),
-	path('get-album-photos', google_api.get_album_photos)
+	path('check-gphotos-light', google_api.check_gphotos_soft)
+	#path('list-photos', google_api.list_photos),
+	#path('list-albums', google_api.list_albums),
+	#path('get-album-photos', google_api.get_album_photos)
+	
 ]

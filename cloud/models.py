@@ -10,3 +10,4 @@ class GoogleSync(models.Model):
 	path = models.CharField(max_length=32)
 	gphotos = models.BooleanField(default=False)
 	gdrive = models.BooleanField(default=False)
+	is_dir = models.BooleanField(default=False)

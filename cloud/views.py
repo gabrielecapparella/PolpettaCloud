@@ -52,8 +52,8 @@ def oauth2_callback(request):
 	flow.redirect_uri = 'http://localhost:8000/cloud/oauth2callback'
 	flow.fetch_token(code=request.GET['code'])
 
-	with open("credentials.json", 'w') as f:
-		json.dump(credentials_to_dict(flow.credentials), f)
+	#with open("credentials.json", 'w') as f:
+	#	json.dump(credentials_to_dict(flow.credentials), f)
 
 	return HttpResponse(status=204)
 
@@ -86,10 +86,10 @@ def get_folder(request):
 @login_required
 def delete(request): #what if it has to delete a folder
 	try:
-		folder = os.path.join(settings.ROOT_PATH, request.POST['folder'])
-		for path in os.path.join(settings.ROOT_PATH, request.POST['to_delete[]']):
-			old = os.path.join(settings.ROOT_PATH, path)
-			new = os.path.join(settings.TRASH_PATH, os.path.basename(path))
+		folder = os.path.join(request.user.root_path, request.POST['folder'])
+		for path in os.path.join(request.user.root_path, request.POST['to_delete[]']):
+			old = os.path.join(request.user.root_path, path)
+			new = os.path.join(request.user.trash_path, os.path.basename(path))
 			while(os.path.exists(new)): new += '.copy'
 			os.rename(old, new)
 
@@ -106,9 +106,9 @@ def delete(request): #what if it has to delete a folder
 @login_required
 def rename(request):
 	try:
-		folder = os.path.join(settings.ROOT_PATH, request.POST['folder'])
-		old = os.path.join(settings.ROOT_PATH, request.POST['old_path'])
-		new = os.path.join(settings.ROOT_PATH, request.POST['new_path'])
+		folder = os.path.join(request.user.root_path, request.POST['folder'])
+		old = os.path.join(request.user.root_path, request.POST['old_path'])
+		new = os.path.join(request.user.root_path, request.POST['new_path'])
 		while(os.path.exists(new)): new += '.copy'
 		os.rename(old, new)
 
@@ -124,7 +124,7 @@ def rename(request):
 @login_required
 def create_folder(request):
 	try:
-		folder = os.path.join(settings.ROOT_PATH, request.POST['folder'])
+		folder = os.path.join(request.user.root_path, request.POST['folder'])
 		full_path = os.path.join(folder, request.POST['name'])
 		os.makedirs(full_path)
 
@@ -143,7 +143,7 @@ def copy(request):
 		paths = []
 		for path in request.POST.getlist('to_copy[]'):
 			print('path', path)
-			paths.append(os.path.join(settings.ROOT_PATH, path))
+			paths.append(os.path.join(request.user.root_path, path))
 	except KeyError:
 		return HttpResponse(status=400)
 	request.session['clipboard'] = paths
@@ -155,7 +155,7 @@ def cut(request):
 	try:
 		paths = []
 		for path in request.POST.getlist('to_cut[]'):
-			paths.append(os.path.join(settings.ROOT_PATH, path))
+			paths.append(os.path.join(request.user.root_path, path))
 	except KeyError:
 		return HttpResponse(status=400)
 	request.session['clipboard'] = paths
@@ -165,7 +165,7 @@ def cut(request):
 @login_required
 def paste(request):
 	try:
-		destination = os.path.join(settings.ROOT_PATH, request.POST['folder'])
+		destination = os.path.join(request.user.root_path, request.POST['folder'])
 		mode = request.session['clipboard_mode']
 		for path in request.session['clipboard']:
 			new_path = os.path.join(destination, os.path.basename(path))
@@ -187,7 +187,7 @@ def paste(request):
 def upload_files(request):
 	# print(request.POST.keys())
 	# print(request.FILES.keys())
-	folder = os.path.join(settings.ROOT_PATH, request.POST['folder'])
+	folder = os.path.join(request.user.root_path, request.POST['folder'])
 	for uploaded_file in request.FILES.getlist('files[]'):
 		full_path = os.path.join(folder, uploaded_file.name)
 		with open(full_path, 'wb+') as f:
