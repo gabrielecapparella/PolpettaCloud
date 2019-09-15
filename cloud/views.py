@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
 from django import forms
+from cloud.models import GoogleSync
 import google.oauth2.credentials
 import google_auth_oauthlib.flow
 from googleapiclient.discovery import build
@@ -66,9 +67,24 @@ def credentials_to_dict(credentials):
           'scopes': credentials.scopes}
 
 @login_required
+def get_info(request): # as of now it only returns info about sync
+	root = request.user.root_path
+	try:
+		path = request.POST['path']
+	except KeyError:
+		return HttpResponse(status=400)
+	
+	q = GoogleSync.objects.filter(user=request.user, path=path)
+	if q:
+		info = {"gphotos_sync":q[0].gphotos, "gdrive_sync":q[0].gdrive}
+	else:
+		info = {"gphotos_sync":False, "gdrive_sync":False}
+
+	return JsonResponse(info, safe=False)
+
+@login_required
 def get_folder(request):
 	root = request.user.root_path
-	print("get_folder", root)
 	try:
 		folder = os.path.join(root, request.POST['folder'])
 	except KeyError:
@@ -84,7 +100,7 @@ def get_folder(request):
 	return JsonResponse(files, safe=False)
 
 @login_required
-def delete(request): #what if it has to delete a folder
+def delete(request): #what if it has to delete a folder, like pics_default?
 	try:
 		folder = os.path.join(request.user.root_path, request.POST['folder'])
 		for path in os.path.join(request.user.root_path, request.POST['to_delete[]']):
@@ -188,11 +204,17 @@ def upload_files(request):
 	# print(request.POST.keys())
 	# print(request.FILES.keys())
 	folder = os.path.join(request.user.root_path, request.POST['folder'])
+	q = GoogleSync.objects.filter(
+		user=request.user, is_dir=True, path=folder
+		)
 	for uploaded_file in request.FILES.getlist('files[]'):
 		full_path = os.path.join(folder, uploaded_file.name)
 		with open(full_path, 'wb+') as f:
 			for chunk in uploaded_file.chunks():
 				f.write(chunk)
+		if q and q.gphotos: # and the file is a picture
+			pass #upload the photo
+
 	files = scan_folder(folder)
 	return JsonResponse(files, safe=False)
 

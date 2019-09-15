@@ -14,13 +14,13 @@ def check_gphotos_soft(request):
 
 	local_photos = [basename(photo.path) for photo in local_photos]
 	remote_photos = list_photos()
-
+	folder = join(request.user.root_path, request.user.pics_default)
 	for photo in remote_photos:
 		if not photo["filename"] in local_photos: # perhaps I should use google id
 			print('downloading ', photo["filename"])
 			req = requests.get(photo["baseUrl"])
 			if req.status_code==200:
-				dest = join(request.user.root_path, photo["filename"])
+				dest = join(folder, photo["filename"])
 				with open(dest, 'wb') as f:
 					f.write(req.content)
 

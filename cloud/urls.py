@@ -21,6 +21,7 @@ urlpatterns = [
 	path('cut', views.cut),
 	path('paste', views.paste),
 	path('upload-files', views.upload_files),
+	path('get-info', views.get_info),
 
 	path('check-gphotos-light', google_api.check_gphotos_soft)
 	#path('list-photos', google_api.list_photos),

@@ -5,6 +5,7 @@ document.onselectstart = function() {
 $(document).ready(function() {
 	var selected_entries = [];
 	var last_selected_index = -1;
+	var files = [];
 
 	open_folder(current_folder);
 
@@ -137,6 +138,21 @@ $(document).ready(function() {
 	function fill_info() {
 		if (selected_entries.length<1) { // show current folder info
 
+		} else if (selected_entries.length==1) {
+			sel = files[last_selected_index];
+			$('#info-name').html(sel['name']);
+			$('#info-size').html(sel['size']);
+			$.ajax({
+				url: '/cloud/get-info',
+				type: 'POST',
+				data: {
+					'path': current_folder+sel['name']
+				},
+				success: function(data) {
+					$('#synch-photos').html(data['gphotos_sync']);
+					$('#synch-drive').html(data['gdrive_sync']);
+				}
+			});
 		} else {
 
 		}
@@ -145,6 +161,7 @@ $(document).ready(function() {
 	function fill_table(entries) {
 		selected_entries = [];
 		last_selected = null;
+		files = entries;
 
 		content = '';
 		entries.forEach(function(entry) {
@@ -185,6 +202,7 @@ $(document).ready(function() {
 			$('#delete').prop('disabled', !l);
 			$('#rename').prop('disabled', l!=1);
 			console.log(selected_entries);
+			fill_info();
 		});
 
 		$('.entry-name.type-dir').unbind("dblclick").dblclick(function() {
