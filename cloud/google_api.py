@@ -1,11 +1,57 @@
 import google.oauth2.credentials
 import google_auth_oauthlib.flow
 from googleapiclient.discovery import build
+from google.auth.transport.requests import AuthorizedSession
 import json
 from django.http import JsonResponse, HttpResponse
 from cloud.models import GoogleSync
 from os.path import basename, join
 import requests
+
+def create_session(user):
+	with open("credentials.json", 'r') as f: # REMOVE BEFORE FLIGHT
+		credentials = google.oauth2.credentials.Credentials(**json.load(f))
+	return AuthorizedSession(credentials)
+
+# filepath is relative to user's root folder
+def upload_photo(user: CloudUser, filepath: str):
+	url_upload = 'https://photoslibrary.googleapis.com/v1/uploads'
+	url_create = 'https://photoslibrary.googleapis.com/v1/mediaItems:batchCreate'
+	full_path = join(user.root_path, filepath)
+	album_id = get_album_from_path(user, full_path)
+	session = create_session(user)
+
+	session.headers["Content-type"] = "application/octet-stream"
+	session.headers["X-Goog-Upload-Protocol"] = "raw"
+	session.headers["X-Goog-Upload-File-Name"] = basename(full_path)
+	with open(full_path, 'rb') as f:
+		fcontent = f.read()
+	upload_token = session.post(url_upload, fcontent)
+	print('upload_token ', upload_token.content)
+
+	del(session.headers["X-Goog-Upload-Protocol"])
+	del(session.headers["X-Goog-Upload-File-Name"])
+	session.headers["Content-type"] = "application/json"
+	body = {
+		"albumId":album_id, 
+		"newMediaItems": [{
+			"description": "",
+			"simpleMediaItem": {
+				"uploadToken":upload_token.content.decode()
+			}
+		}]
+	}
+	body = json.dumps(body)
+	create_photo = session.post(url_create, body)
+	print('create_photo ', create_photo)
+	session.close()
+
+
+def get_album_from_path(user, path):
+#	album_id = GoogleSync.objects.filter(
+#		user=user, gphotos=True, is_dir=True, path=
+#		).only("path")
+	pass
 
 def check_gphotos_soft(request):
 	local_photos = GoogleSync.objects.filter(
@@ -25,9 +71,6 @@ def check_gphotos_soft(request):
 					f.write(req.content)
 
 	return HttpResponse(status=204)
-	
-
-
 
 def list_photos():
 	with open("credentials.json", 'r') as f:
