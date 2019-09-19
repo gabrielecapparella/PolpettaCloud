@@ -1,18 +1,89 @@
 import google.oauth2.credentials
-import google_auth_oauthlib.flow
-from googleapiclient.discovery import build
 from google.auth.transport.requests import AuthorizedSession
-import json
+
 from django.http import JsonResponse, HttpResponse
+from django.conf import settings
+from django.contrib.auth.decorators import login_required
 from cloud.models import GoogleSync
+
 from os.path import basename, join
 import requests
+import json
+
+@login_required
+def test_endpoint(request):
+	p = list_albums(request.user)
+	print("list_albums ", p)
+	return HttpResponse(status=204)
+
 
 def create_session(user):
-	with open("credentials.json", 'r') as f: # REMOVE BEFORE FLIGHT
-		credentials = google.oauth2.credentials.Credentials(**json.load(f))
+	credentials = google.oauth2.credentials.Credentials(
+		token = user.g_token, 
+		refresh_token = user.g_refresh_token,
+		client_id = settings.CLIENT_ID,
+		client_secret = settings.CLIENT_SECRET,
+		token_uri = settings.TOKEN_URI
+	)
 	return AuthorizedSession(credentials)
 
+def check_gphotos_soft(user):
+	local_photos = GoogleSync.objects.filter(
+		user=user, gphotos=True, is_dir=False
+		).only("path")
+
+	local_photos = [basename(photo.path) for photo in local_photos]
+	remote_photos = list_photos(user)
+	folder = join(user.root_path, user.pics_default)
+	for photo in remote_photos:
+		if not photo["filename"] in local_photos: # perhaps I should use google id
+			print('downloading ', photo["filename"])
+			req = requests.get(photo["baseUrl"])
+			if req.status_code==200:
+				dest = join(folder, photo["filename"])
+				with open(dest, 'wb') as f:
+					f.write(req.content)
+
+
+def list_photos(user):
+	session = create_session(user)
+	url = 'https://photoslibrary.googleapis.com/v1/mediaItems'
+	params = {
+		"pageSize": 100,
+		"pageToken": ""
+	}
+	result = []
+	while True:
+		page = session.get(url, params=params).json()
+		result += page['mediaItems']
+		if 'nextPageToken' in page:
+			params["pageToken"] = page["nextPageToken"]
+		else:
+			break
+	session.close()
+	return result
+
+
+def list_albums(user):
+	session = create_session(user)
+	url = 'https://photoslibrary.googleapis.com/v1/albums'
+	params = {
+		"pageSize": 50,
+		"pageToken": ""
+	}
+	result = []
+	while True:
+		page = session.get(url, params=params).json()
+		result += page['albums']
+		if 'nextPageToken' in page:
+			params["pageToken"] = page["nextPageToken"]
+		else:
+			break
+	session.close()
+	return result
+
+
+'''
 # filepath is relative to user's root folder
 def upload_photo(user: CloudUser, filepath: str):
 	url_upload = 'https://photoslibrary.googleapis.com/v1/uploads'
@@ -45,88 +116,4 @@ def upload_photo(user: CloudUser, filepath: str):
 	create_photo = session.post(url_create, body)
 	print('create_photo ', create_photo)
 	session.close()
-
-
-def get_album_from_path(user, path):
-#	album_id = GoogleSync.objects.filter(
-#		user=user, gphotos=True, is_dir=True, path=
-#		).only("path")
-	pass
-
-def check_gphotos_soft(request):
-	local_photos = GoogleSync.objects.filter(
-		user=request.user, gphotos=True, is_dir=False
-		).only("path")
-
-	local_photos = [basename(photo.path) for photo in local_photos]
-	remote_photos = list_photos()
-	folder = join(request.user.root_path, request.user.pics_default)
-	for photo in remote_photos:
-		if not photo["filename"] in local_photos: # perhaps I should use google id
-			print('downloading ', photo["filename"])
-			req = requests.get(photo["baseUrl"])
-			if req.status_code==200:
-				dest = join(folder, photo["filename"])
-				with open(dest, 'wb') as f:
-					f.write(req.content)
-
-	return HttpResponse(status=204)
-
-def list_photos():
-	with open("credentials.json", 'r') as f:
-		credentials = google.oauth2.credentials.Credentials(**json.load(f))
-	s = build('photoslibrary', 'v1', credentials=credentials)
-
-	page_token = ""
-	result = []
-	while True:
-		page = s.mediaItems().list(pageSize=2, pageToken=page_token).execute()
-		result += page['mediaItems']
-		page_token = page.get('nextPageToken', False)
-		if not page_token: break
-	
-	with open("list_photos_out.json", 'w') as f:
-		json.dump(result, f, indent=4)
-	
-	return result
-
-def list_albums(request):
-	with open("credentials.json", 'r') as f:
-		credentials = google.oauth2.credentials.Credentials(**json.load(f))
-	s = build('photoslibrary', 'v1', credentials=credentials)
-
-	page_token = ""
-	result = []
-	while True:
-		page = s.albums().list(pageSize=2, pageToken=page_token).execute()
-		result += page['albums']
-		page_token = page.get('nextPageToken', False)
-		if not page_token: break
-	
-	with open("list_albums_out.json", 'w') as f:
-		json.dump(result, f, indent=4)
-	
-	return HttpResponse(status=204)
-
-def get_album_photos(request):
-	with open("credentials.json", 'r') as f:
-		credentials = google.oauth2.credentials.Credentials(**json.load(f))
-	s = build('photoslibrary', 'v1', credentials=credentials)
-
-	page_token = ""
-	result = []
-	while True:
-		searchbody = {
-			"albumId":"APebepgoBahDToUHaCGLHh7RZuSQe4uzwd-nB2Xqi-L4OjSpDSz7fKIbBKqWSoi3X_-kWXw-jNjM",
-			"pageSize":2,
-			"pageToken":page_token
-		}
-		page = s.mediaItems().search(body=searchbody).execute()
-		result += page['mediaItems']
-		page_token = page.get('nextPageToken', False)
-		if not page_token: break
-	
-	with open("get_album_photos_out.json", 'w') as f:
-		json.dump(result, f, indent=4)
-	
-	return HttpResponse(status=204)
+'''

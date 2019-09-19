@@ -9,17 +9,6 @@ $(document).ready(function() {
 
 	open_folder(current_folder);
 
-	$('#google-consent').click(function(){
-		// $.ajax({
-		// 	url: '/cloud/google-consent',
-		// 	type: 'GET',
-		// 	crossDomain: true,
-		// 	headers: {  'Access-Control-Allow-Origin': '*' },
-		// 	dataType: 'jsonp'
-		// });
-		window.open('/cloud/google-consent', "yay", 'width=500,height=500');
-	});
-
 	$('#parent').click(function(){
 		open_folder(current_folder.replace(/[^/]+\/$/, ''));
 	});

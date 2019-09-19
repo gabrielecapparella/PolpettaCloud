@@ -8,8 +8,6 @@
 		<script type = "text/javascript" src = "{% static "cloud/jquery-3.2.1.min.js" %}"></script>
 		<script type = "text/javascript"> var current_folder = '{{folder}}';</script>
 		<script type = "text/javascript" src = "{% static "cloud/cloud.js" %}"></script>
-		<script src="https://apis.google.com/js/platform.js" async defer></script>
-		<meta name="google-signin-client_id" content="955598460384-lcpa2cqi613dfbpfbncb10tmuu2mpf2v.apps.googleusercontent.com">
 	</head>
 	<body>
 		<header>-</header>
@@ -19,32 +17,9 @@
 				<input id="upload-folder-hidden" type="file" name="files" multiple>
 				<button id="upload-files" type="button">Upload Files</button>
 				<button id="upload-folder" type="button">Upload Folder</button>
-				<button id="google-consent" type="button">Google Consent</button>
-				<!-- <div class="g-signin2" data-onsuccess="onSignIn"></div>
-				<script>
-					function onSignIn(googleUser) {
-						// // Useful data for your client-side scripts:
-						// var profile = googleUser.getBasicProfile();
-						// console.log("ID: " + profile.getId()); // Don't send this directly to your server!
-						// console.log('Full Name: ' + profile.getName());
-						// console.log('Given Name: ' + profile.getGivenName());
-						// console.log('Family Name: ' + profile.getFamilyName());
-						// console.log("Image URL: " + profile.getImageUrl());
-						// console.log("Email: " + profile.getEmail());
-				
-						// The ID token you need to pass to your backend:
-						var id_token = googleUser.getAuthResponse().id_token;
-						console.log("ID Token: " + id_token);
-						$.ajax({
-							url: '/token',
-							type: 'POST',
-							data: {
-								'token': id_token
-							}
-						});						
-					}
-				</script>-->
-				  			 
+				<a href="/cloud/google-consent">
+					<button id="google-consent" type="button">Google Consent</button>
+				</a>				  			 
 		</div>
 		<div id="main" class="column">
 			<div id="buttons">

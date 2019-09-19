@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 
 import os
 from passwords import SECRET_KEY
+import json
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -125,3 +126,11 @@ CORS_ORIGIN_ALLOW_ALL = True
 LOGIN_URL = '/cloud/login'
 
 AUTH_USER_MODEL = 'cloud.CloudUser'
+
+# client_id, client_secret, project_id, auth_uri, token_uri, ...
+with open("client_secret.json", 'r') as f:
+	data = json.load(f)["web"]
+	CLIENT_ID = data["client_id"]
+	CLIENT_SECRET = data["client_secret"]
+	TOKEN_URI = data["token_uri"]
+del data

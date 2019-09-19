@@ -6,3 +6,4 @@ cloud_trash/
 db.sqlite3
 credentials.json
 code_verifier
+client_secret.json

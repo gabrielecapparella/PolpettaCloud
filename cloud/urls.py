@@ -23,8 +23,8 @@ urlpatterns = [
 	path('upload-files', views.upload_files),
 	path('get-info', views.get_info),
 
-	path('check-gphotos-light', google_api.check_gphotos_soft),
-	path('upload-photo', google_api.upload_photo)
+	path('test', google_api.test_endpoint),
+	#path('upload-photo', google_api.upload_photo)
 	#path('list-photos', google_api.list_photos),
 	#path('list-albums', google_api.list_albums),
 	#path('get-album-photos', google_api.get_album_photos)

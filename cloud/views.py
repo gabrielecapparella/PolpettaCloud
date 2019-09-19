@@ -33,38 +33,34 @@ def login_user(request):
 
 @login_required
 def google_consent(request):
-	flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
+	print("google_consent", request.user)
+	flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file( # REMOVE BEFORE FLIGHT
 		'/home/gabriele/Desktop/client_secret.json', 
 		scopes=['https://www.googleapis.com/auth/photoslibrary'])
 	flow.redirect_uri = 'http://localhost:8000/cloud/oauth2callback'
 	authorization_url, state = flow.authorization_url(
 		access_type='offline',
 		include_granted_scopes='true')
-	with open("code_verifier", 'w') as f:
-		f.write(flow.code_verifier)
+
+	request.user.g_token = flow.code_verifier
+	request.user.save()
+
 	return redirect(authorization_url)
 
 def oauth2_callback(request):
-	flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
+	print("oauth2_callback", request.user)
+	flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file( # REMOVE BEFORE FLIGHT
 		'/home/gabriele/Desktop/client_secret.json', 
 		scopes=None)
-	with open("code_verifier", 'r') as f:
-		flow.code_verifier = f.read()
+	flow.code_verifier = request.user.g_token
 	flow.redirect_uri = 'http://localhost:8000/cloud/oauth2callback'
 	flow.fetch_token(code=request.GET['code'])
 
-	#with open("credentials.json", 'w') as f:
-	#	json.dump(credentials_to_dict(flow.credentials), f)
+	request.user.g_token = flow.credentials.token
+	request.user.g_refresh_token = flow.credentials.refresh_token
+	request.user.save()
 
-	return HttpResponse(status=204)
-
-def credentials_to_dict(credentials):
-  return {'token': credentials.token,
-          'refresh_token': credentials.refresh_token,
-          'token_uri': credentials.token_uri,
-          'client_id': credentials.client_id,
-          'client_secret': credentials.client_secret,
-          'scopes': credentials.scopes}
+	return redirect('/cloud')
 
 @login_required
 def get_info(request): # as of now it only returns info about sync
