@@ -33,10 +33,13 @@ def login_user(request):
 
 @login_required
 def google_consent(request):
-	print("google_consent", request.user)
-	flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file( # REMOVE BEFORE FLIGHT
-		'/home/gabriele/Desktop/client_secret.json', 
-		scopes=['https://www.googleapis.com/auth/photoslibrary'])
+	scopes = [
+		'https://www.googleapis.com/auth/photoslibrary',
+		'https://www.googleapis.com/auth/drive'
+		]
+	flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
+		'client_secret.json', 
+		scopes=scopes)
 	flow.redirect_uri = 'http://localhost:8000/cloud/oauth2callback'
 	authorization_url, state = flow.authorization_url(
 		access_type='offline',
@@ -48,9 +51,8 @@ def google_consent(request):
 	return redirect(authorization_url)
 
 def oauth2_callback(request):
-	print("oauth2_callback", request.user)
-	flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file( # REMOVE BEFORE FLIGHT
-		'/home/gabriele/Desktop/client_secret.json', 
+	flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
+		'client_secret.json', 
 		scopes=None)
 	flow.code_verifier = request.user.g_token
 	flow.redirect_uri = 'http://localhost:8000/cloud/oauth2callback'

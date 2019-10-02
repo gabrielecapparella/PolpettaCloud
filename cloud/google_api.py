@@ -10,12 +10,16 @@ from os.path import basename, join
 import requests
 import json
 
+
 @login_required
 def test_endpoint(request):
-	p = list_albums(request.user)
-	print("list_albums ", p)
+	# res = gdrive_create_file(request.user, '/home/gabriele/Desktop/cpqonbah7fp31.jpg')
+	# print('gdrive_create_file ', res.content)
+	# g_id = res.json()['id']
+	g_id = "1PiX0pttGPwlfVbp-_v36nlbFYVJIojtH"
+	res2 = gdrive_update_file(request.user, 'gluglu.jpg', g_id)
+	print('gdrive_upload_file ', res2.content)
 	return HttpResponse(status=204)
-
 
 def create_session(user):
 	credentials = google.oauth2.credentials.Credentials(
@@ -26,6 +30,43 @@ def create_session(user):
 		token_uri = settings.TOKEN_URI
 	)
 	return AuthorizedSession(credentials)
+
+def gdrive_create_file(user, file_path):
+	session = create_session(user)
+	url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=media"
+	session.headers["Content-type"] = "image/jpeg"
+	#session.headers["Content-Length"] = "50447"
+	with open(file_path, 'rb') as f:
+		body = f.read()
+
+	res = session.post(url, body)
+	return res
+
+def gdrive_update_file(user, name, gdrive_id): # As of now it only changes the file name
+	session = create_session(user)
+	session.headers["Content-type"] = "application/json"
+	url = "https://www.googleapis.com/drive/v3/files/{}".format(gdrive_id)
+	body = json.dumps({
+	 	'name': name
+	})
+	res = session.patch(url, body)
+	return res
+
+def gdrive_changes_start_page(user):
+	session = create_session(user)
+	url = "https://www.googleapis.com/drive/v3/changes/startPageToken"
+	res = session.get(url).json()
+	print("res ", res)
+	return res["startPageToken"]
+
+def gdrive_changes_list(user):
+	global p
+	session = create_session(user)
+	url = "https://www.googleapis.com/drive/v3/changes"
+	res = session.get(url, params={ "pageToken": p }).json()
+	p = res["newStartPageToken"]
+	return res
+
 
 def check_gphotos_soft(user):
 	local_photos = GoogleSync.objects.filter(
