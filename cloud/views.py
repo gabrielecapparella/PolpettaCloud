@@ -99,6 +99,7 @@ def get_folder(request):
 
 @login_required
 def delete(request): #what if it has to delete a folder, like pics_default?
+	#if gdrive_id=="" I must delete the entry from the DB too
 	try:
 		folder = os.path.join(request.user.root_path, request.POST['folder'])
 		for path in os.path.join(request.user.root_path, request.POST['to_delete[]']):

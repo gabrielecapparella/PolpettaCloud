@@ -6,13 +6,16 @@ class CloudUser(AbstractUser):
 	trash_path = models.CharField(max_length=64)
 	pics_default = models.CharField(max_length=64)
 
-	g_token = models.CharField(max_length=256, default="")
-	g_refresh_token = models.CharField(max_length=64, default="")
-
-class GoogleSync(models.Model):
+class GDrive_Index(models.Model):
 	user = models.ForeignKey(CloudUser, on_delete=models.CASCADE)
+	gdrive_id = models.CharField(max_length=128, default="")
+	parent_gdrive_id = models.CharField(max_length=128, default="")
 	path = models.CharField(max_length=128)
-	gphotos = models.BooleanField(default=False)
-	gdrive = models.BooleanField(default=False)
+	is_dirty = models.BooleanField(default=False)
 	is_dir = models.BooleanField(default=False)
-	album_id = models.CharField(max_length=128, default="")
+
+class Google_Tokens(models.Model):
+	user = models.ForeignKey(CloudUser, on_delete=models.CASCADE)
+	g_token = models.CharField(max_length=256, default="")
+	g_refresh_token = models.CharField(max_length=256, default="")
+	gdrive_changes_token = models.CharField(max_length=256, default="")

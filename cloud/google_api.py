@@ -4,7 +4,7 @@ from google.auth.transport.requests import AuthorizedSession
 from django.http import JsonResponse, HttpResponse
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from cloud.models import GoogleSync
+from cloud.models import GDrive_Index
 
 from os.path import basename, join
 import requests
@@ -31,6 +31,24 @@ def create_session(user):
 	)
 	return AuthorizedSession(credentials)
 
+def gdrive_check(user):
+	remote_changes = gdrive_changes_list(user)
+	dirty_entries = GDrive_Index.objects.filter(user=user, dirty=True)
+
+	for entry in remote_changes:
+		if entry.id in dirty_entries: pass #notifica
+		pass #download
+	
+	for entry in dirty_entries:
+		#if file not exist: delete from db and gdrive(if has g_id)
+		if entry.gdrive_id=="":
+			pass #upload
+		else:
+			pass #update
+		# not dirty anymore
+
+
+
 def gdrive_create_file(user, file_path):
 	session = create_session(user)
 	url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=media"
@@ -52,6 +70,9 @@ def gdrive_update_file(user, name, gdrive_id): # As of now it only changes the f
 	res = session.patch(url, body)
 	return res
 
+def gdrive_move_file(file_id, old_parent_id, new_parent_id):
+	pass
+
 def gdrive_changes_start_page(user):
 	session = create_session(user)
 	url = "https://www.googleapis.com/drive/v3/changes/startPageToken"
@@ -60,7 +81,7 @@ def gdrive_changes_start_page(user):
 	return res["startPageToken"]
 
 def gdrive_changes_list(user):
-	global p
+	global p # REMOVE BEFORE FLIGHT
 	session = create_session(user)
 	url = "https://www.googleapis.com/drive/v3/changes"
 	res = session.get(url, params={ "pageToken": p }).json()
