@@ -8,9 +8,9 @@ class CloudUser(AbstractUser):
 
 class GDrive_Index(models.Model):
 	user = models.ForeignKey(CloudUser, on_delete=models.CASCADE)
-	gdrive_id = models.CharField(max_length=128, default="")
-	parent_gdrive_id = models.CharField(max_length=128, default="")
-	path = models.CharField(max_length=128)
+	gdrive_id = models.CharField(max_length=256, default="")
+	parent_gdrive_id = models.CharField(max_length=256, default="")
+	path = models.CharField(max_length=256) # relative to root_path
 	is_dirty = models.BooleanField(default=False)
 	is_dir = models.BooleanField(default=False)
 

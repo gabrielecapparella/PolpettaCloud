@@ -6,7 +6,8 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from cloud.models import GDrive_Index
 
-from os.path import basename, join
+from os.path import basename, join, exists
+from os import scandir as os_scandir
 import requests
 import json
 
@@ -35,21 +36,62 @@ def gdrive_check(user):
 	remote_changes = gdrive_changes_list(user)
 	dirty_entries = GDrive_Index.objects.filter(user=user, dirty=True)
 
-	for entry in remote_changes:
-		if entry.id in dirty_entries: pass #notifica
-		pass #download
+	for entry in remote_changes: # TODO
+		if entry.id in dirty_entries: 
+			pass # both local and remote is dirty, ask user
+		else: # download
+			gdrive_download_file(user, entry.id)
 	
 	for entry in dirty_entries:
-		#if file not exist: delete from db and gdrive(if has g_id)
-		if entry.gdrive_id=="":
-			pass #upload
+		full_path = join(user.root_path, entry.path)
+		if not exists(full_path): # file was deleted
+			if entry.gdrive_id:
+				gdrive_delete(user, entry.gdrive_id)
+			entry.delete()
+		elif entry.gdrive_id=="": # not yet uploaded
+			gdrive_create_file(user, full_path)
+		else: # file was modified
+			pass #TODO: update file content
+		entry.is_dirty = False
+		entry.save()
+
+def gdrive_delete(user, g_id): 
+	pass # TODO
+
+def gdrive_download_file(user, g_id):
+	session = create_session(user)
+	url = "https://www.googleapis.com/drive/v3/files/{}".format(g_id)
+	res = session.get(url).json()
+	if res["mimeType"] == "application/vnd.google-apps.folder":
+		pass # TODO: it's a folder
+	else:
+		file_path = GDrive_Index.objects.get(user=user, gdrive_id=g_id).values("path")
+		req = requests.get(res["webContentLink"])
+		if req.status_code==200:
+				dest = join(user.root_path, file_path)
+				with open(dest, 'wb') as f:
+					f.write(req.content)
+
+def gdrive_synch_file_or_folder(user, relative_path):
+	full_path = join(user.root_path, relative_path)
+	for entry in os_scandir(full_path):
+		entry_rel_path = join(relative_path, entry.name)
+		if entry.is_dir():
+			gdrive_synch_file_or_folder(user, entry_rel_path)
 		else:
-			pass #update
-		# not dirty anymore
-
-
+			if not GDrive_Index.objects.filter(user=user, path=entry_rel_path).exists():
+				new_entry = GDrive_Index(
+					user = user,
+					gdrive_id = None,
+					parent_gdrive_id = None,
+					path = entry_rel_path,
+					is_dirty = True,
+					is_dir = False
+				)
+				new_entry.save()
 
 def gdrive_create_file(user, file_path):
+	# should take care of parent_id and update DB
 	session = create_session(user)
 	url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=media"
 	session.headers["Content-type"] = "image/jpeg"
@@ -58,9 +100,10 @@ def gdrive_create_file(user, file_path):
 		body = f.read()
 
 	res = session.post(url, body)
-	return res
+	gdrive_update_file(user, basename(file_path), res.json()["id"])
 
-def gdrive_update_file(user, name, gdrive_id): # As of now it only changes the file name
+def gdrive_update_file(user, name, gdrive_id):
+	# TODO: As of now it only changes the file name
 	session = create_session(user)
 	session.headers["Content-type"] = "application/json"
 	url = "https://www.googleapis.com/drive/v3/files/{}".format(gdrive_id)
