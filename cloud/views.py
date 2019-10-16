@@ -4,7 +4,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
 from django import forms
-from cloud.models import GoogleSync
+from cloud.models import GDrive_Index, Google_Tokens
 import google.oauth2.credentials
 import google_auth_oauthlib.flow
 from googleapiclient.discovery import build
@@ -45,22 +45,24 @@ def google_consent(request):
 		access_type='offline',
 		include_granted_scopes='true')
 
-	request.user.g_token = flow.code_verifier
-	request.user.save()
+	user_tokens = Google_Tokens.objects.get_or_create(user=request.user)[0]
+	user_tokens.g_token = flow.code_verifier
+	user_tokens.save()
 
 	return redirect(authorization_url)
 
 def oauth2_callback(request):
+	user_tokens = Google_Tokens.objects.get(user=request.user)
 	flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
 		'client_secret.json', 
 		scopes=None)
-	flow.code_verifier = request.user.g_token
+	flow.code_verifier = user_tokens.g_token
 	flow.redirect_uri = 'http://localhost:8000/cloud/oauth2callback'
 	flow.fetch_token(code=request.GET['code'])
 
-	request.user.g_token = flow.credentials.token
-	request.user.g_refresh_token = flow.credentials.refresh_token
-	request.user.save()
+	user_tokens.g_token = flow.credentials.token
+	user_tokens.g_refresh_token = flow.credentials.refresh_token
+	user_tokens.save()
 
 	return redirect('/cloud')
 

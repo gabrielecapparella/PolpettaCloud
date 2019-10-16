@@ -4,9 +4,11 @@ from google.auth.transport.requests import AuthorizedSession
 from django.http import JsonResponse, HttpResponse
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from cloud.models import GDrive_Index
+from cloud.models import GDrive_Index, Google_Tokens
 
-from os.path import basename, join, exists
+from os.path import basename, join, exists, isdir
+from os.path import split as os_split
+from os.path import getsize as os_getsize
 from os import scandir as os_scandir
 import requests
 import json
@@ -14,23 +16,48 @@ import json
 
 @login_required
 def test_endpoint(request):
-	# res = gdrive_create_file(request.user, '/home/gabriele/Desktop/cpqonbah7fp31.jpg')
-	# print('gdrive_create_file ', res.content)
-	# g_id = res.json()['id']
-	g_id = "1PiX0pttGPwlfVbp-_v36nlbFYVJIojtH"
-	res2 = gdrive_update_file(request.user, 'gluglu.jpg', g_id)
-	print('gdrive_upload_file ', res2.content)
+	gdrive_create_file(request.user, '/home/gabriele/Desktop/cpqonbah7fp31.jpg')
+
 	return HttpResponse(status=204)
 
+
 def create_session(user):
+	tokens = Google_Tokens.objects.get(user = user)
 	credentials = google.oauth2.credentials.Credentials(
-		token = user.g_token, 
-		refresh_token = user.g_refresh_token,
+		token = tokens.g_token, 
+		refresh_token = tokens.g_refresh_token,
 		client_id = settings.CLIENT_ID,
 		client_secret = settings.CLIENT_SECRET,
 		token_uri = settings.TOKEN_URI
 	)
 	return AuthorizedSession(credentials)
+
+
+def gdrive_synch_file_or_folder(user, relative_path):
+	full_path = join(user.root_path, relative_path)
+	relative_path = relative_path.rstrip('/')
+
+	parent_path = os_split(relative_path)[0]
+	possible_parent = GDrive_Index.objects.filter(user=user, path=parent_path)
+	if possible_parent.exists(): parent_id = possible_parent.gdrive_id
+	else: parent_id = None
+
+	if not GDrive_Index.objects.filter(user=user, path=relative_path).exists():
+		new_entry = GDrive_Index(
+			user = user,
+			gdrive_id = None,
+			parent_gdrive_id = parent_id,
+			path = relative_path,
+			is_dirty = True,
+			is_dir = False
+		)
+		new_entry.save()
+
+	if isdir(relative_path):
+		for entry in os_scandir(full_path):
+			entry_rel_path = join(relative_path, entry.name)
+			gdrive_synch_file_or_folder(user, entry_rel_path)
+		
 
 def gdrive_check(user):
 	remote_changes = gdrive_changes_list(user)
@@ -40,7 +67,7 @@ def gdrive_check(user):
 		if entry.id in dirty_entries: 
 			pass # both local and remote is dirty, ask user
 		else: # download
-			gdrive_download_file(user, entry.id)
+			gdrive_download_file(user, entry.id, None)
 	
 	for entry in dirty_entries:
 		full_path = join(user.root_path, entry.path)
@@ -55,52 +82,42 @@ def gdrive_check(user):
 		entry.is_dirty = False
 		entry.save()
 
-def gdrive_delete(user, g_id): 
-	pass # TODO
 
-def gdrive_download_file(user, g_id):
+def gdrive_delete(user, g_id): # works on folders too
 	session = create_session(user)
 	url = "https://www.googleapis.com/drive/v3/files/{}".format(g_id)
-	res = session.get(url).json()
-	if res["mimeType"] == "application/vnd.google-apps.folder":
-		pass # TODO: it's a folder
-	else:
-		file_path = GDrive_Index.objects.get(user=user, gdrive_id=g_id).values("path")
-		req = requests.get(res["webContentLink"])
-		if req.status_code==200:
-				dest = join(user.root_path, file_path)
-				with open(dest, 'wb') as f:
-					f.write(req.content)
+	res = session.delete(url).json()
+	return res
 
-def gdrive_synch_file_or_folder(user, relative_path):
-	full_path = join(user.root_path, relative_path)
-	for entry in os_scandir(full_path):
-		entry_rel_path = join(relative_path, entry.name)
-		if entry.is_dir():
-			gdrive_synch_file_or_folder(user, entry_rel_path)
-		else:
-			if not GDrive_Index.objects.filter(user=user, path=entry_rel_path).exists():
-				new_entry = GDrive_Index(
-					user = user,
-					gdrive_id = None,
-					parent_gdrive_id = None,
-					path = entry_rel_path,
-					is_dirty = True,
-					is_dir = False
-				)
-				new_entry.save()
+
+def gdrive_download_file(user, g_id, relative_path):
+	session = create_session(user)
+	url = "https://www.googleapis.com/drive/v3/files/{}?alt=media".format(g_id)
+	res = session.get(url).json()
+	if res.status_code==200:
+		dest = join(user.root_path, relative_path)
+		with open(dest, 'wb') as f:
+			f.write(res.content)
+
 
 def gdrive_create_file(user, file_path):
 	# should take care of parent_id and update DB
 	session = create_session(user)
-	url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=media"
-	session.headers["Content-type"] = "image/jpeg"
-	#session.headers["Content-Length"] = "50447"
+	url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable"
+	session.headers["Content-type"] = "application/json; charset=UTF-8"
+	session.headers["Content-Length"] = os_getsize(file_path)
+
+	res = session.post(url, json.dumps({'name': basename(file_path)}))
+	print(res.json())
+	session_uri = res.headers['location'] # should save this somewhere to resume
+	del session.headers["Content-type"]
+
 	with open(file_path, 'rb') as f:
 		body = f.read()
 
-	res = session.post(url, body)
-	gdrive_update_file(user, basename(file_path), res.json()["id"])
+	res = session.put(session_uri, body)
+	print(res.json())
+
 
 def gdrive_update_file(user, name, gdrive_id):
 	# TODO: As of now it only changes the file name
