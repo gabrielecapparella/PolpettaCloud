@@ -1,17 +1,13 @@
 from django.shortcuts import render, redirect
-from django.http import JsonResponse, HttpResponse, Http404
-from django.conf import settings
+from django.http import JsonResponse, HttpResponse
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
-from django import forms
-from cloud.models import GDrive_Index, Google_Tokens
-import google.oauth2.credentials
+from cloud.models import Google_Tokens
 import google_auth_oauthlib.flow
-from googleapiclient.discovery import build
 import os
 from datetime import datetime
 from shutil import copy as sh_copy
-import json
+
 
 @login_required
 def index(request, folder = ''):
@@ -19,14 +15,13 @@ def index(request, folder = ''):
 	return render(request, 'cloud/index.html', {'folder':folder})
 
 def login_action(request):
-    username = request.POST['usr']
-    password = request.POST['pwd']
-    user = authenticate(request, username=username, password=password)
-    if user is not None:
-        login(request, user)
-        return redirect('/cloud')
-    else:
-        return "nope"
+	username = request.POST['usr']
+	password = request.POST['pwd']
+	user = authenticate(request, username=username, password=password)
+	if user is not None:
+		login(request, user)
+		return redirect('/cloud')
+	return "nope"
 
 def login_user(request):
 	return render(request, 'cloud/login.html')	

@@ -16,6 +16,6 @@ class GDrive_Index(models.Model):
 
 class Google_Tokens(models.Model):
 	user = models.ForeignKey(CloudUser, on_delete=models.CASCADE)
-	g_token = models.CharField(max_length=256, default="")
-	g_refresh_token = models.CharField(max_length=256, default="")
-	gdrive_changes_token = models.CharField(max_length=256, default="")
+	g_token = models.CharField(max_length=256, default="", null=True)
+	g_refresh_token = models.CharField(max_length=256, default="", null=True)
+	gdrive_changes_token = models.CharField(max_length=256, default="", null=True)
