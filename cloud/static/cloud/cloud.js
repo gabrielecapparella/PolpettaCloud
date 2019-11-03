@@ -124,9 +124,21 @@ $(document).ready(function() {
 		$('#upload-files-hidden').val('');
 	});
 
-	function fill_info() {
-		if (selected_entries.length<1) { // show current folder info
+	$('#synch-drive').click(function(){
+		if (selected_entries.length!=1) return;
+		$.ajax({
+			url: '/cloud/synch-gdrive',
+			type: 'POST',
+			data: {
+				'path': current_folder+selected_entries[0]
+			},
+			success: fill_info
+		});
+	});
 
+	function fill_info() {
+		if (selected_entries.length<1) { 
+			// TODO: main folder
 		} else if (selected_entries.length==1) {
 			sel = files[last_selected_index];
 			$('#info-name').html(sel['name']);
@@ -138,12 +150,15 @@ $(document).ready(function() {
 					'path': current_folder+sel['name']
 				},
 				success: function(data) {
-					$('#synch-photos').html(data['gphotos_sync']);
-					$('#synch-drive').html(data['gdrive_sync']);
+					if(data['gdrive_sync']){
+						$('#synch-drive').html("Unsynchronize");
+					} else {
+						$('#synch-drive').html("Synchronize");
+					}					
 				}
 			});
 		} else {
-
+			// TODO: multiple files
 		}
 	}
 

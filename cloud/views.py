@@ -2,7 +2,8 @@ from django.shortcuts import render, redirect
 from django.http import JsonResponse, HttpResponse
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
-from cloud.models import Google_Tokens
+from cloud.models import Google_Tokens, GDrive_Index
+import cloud.google_api as google_api
 import google_auth_oauthlib.flow
 import os
 from datetime import datetime
@@ -63,17 +64,17 @@ def oauth2_callback(request):
 
 @login_required
 def get_info(request): # as of now it only returns info about sync
-	root = request.user.root_path
+	#root = request.user.root_path
 	try:
 		path = request.POST['path']
 	except KeyError:
 		return HttpResponse(status=400)
 	
-	q = GoogleSync.objects.filter(user=request.user, path=path)
+	q = GDrive_Index.objects.filter(user=request.user, path=path).exists()
 	if q:
-		info = {"gphotos_sync":q[0].gphotos, "gdrive_sync":q[0].gdrive}
+		info = {"gdrive_sync":True}
 	else:
-		info = {"gphotos_sync":False, "gdrive_sync":False}
+		info = {"gdrive_sync":False}
 
 	return JsonResponse(info, safe=False)
 
@@ -197,19 +198,12 @@ def paste(request):
 
 @login_required
 def upload_files(request):
-	# print(request.POST.keys())
-	# print(request.FILES.keys())
 	folder = os.path.join(request.user.root_path, request.POST['folder'])
-	q = GoogleSync.objects.filter(
-		user=request.user, is_dir=True, path=folder
-		)
 	for uploaded_file in request.FILES.getlist('files[]'):
 		full_path = os.path.join(folder, uploaded_file.name)
 		with open(full_path, 'wb+') as f:
 			for chunk in uploaded_file.chunks():
 				f.write(chunk)
-		if q and q.gphotos: # and the file is a picture
-			pass #upload the photo
 
 	files = scan_folder(folder)
 	return JsonResponse(files, safe=False)
@@ -217,6 +211,12 @@ def upload_files(request):
 @login_required
 def upload_folder(request): # TODO
 	return HttpResponse('ok')
+
+@login_required
+def google_drive_synch(request):
+	rel_path = os.path.join(request.POST['path'])
+	google_api.gdrive_synch_file_or_folder(request.user, rel_path)
+	return HttpResponse(status=204)
 
 def scan_folder(path):
 	files = []

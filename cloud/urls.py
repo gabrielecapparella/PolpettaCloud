@@ -22,6 +22,7 @@ urlpatterns = [
 	path('paste', views.paste),
 	path('upload-files', views.upload_files),
 	path('get-info', views.get_info),
+	path('synch-gdrive', views.google_drive_synch),
 
 	path('test', google_api.test_endpoint),
 	#path('upload-photo', google_api.upload_photo)
