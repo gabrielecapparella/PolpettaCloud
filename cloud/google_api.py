@@ -23,7 +23,7 @@ def test_endpoint(request):
 	return HttpResponse(status=204)
 
 
-def create_session(user):
+def create_session(user): # should I delete these after use?
 	tokens = Google_Tokens.objects.get(user = user)
 	credentials = google.oauth2.credentials.Credentials(
 		token = tokens.g_token,
@@ -34,7 +34,7 @@ def create_session(user):
 	)
 	return AuthorizedSession(credentials)
 
-
+# creates entries in the DB
 def gdrive_synch_file_or_folder(user, relative_path):
 	full_path = join(user.root_path, relative_path)
 	relative_path = relative_path.rstrip('/')
@@ -58,15 +58,16 @@ def gdrive_synch_file_or_folder(user, relative_path):
 
 
 def gdrive_check_dirty(user): # TODO: test
-	remote_changes = gdrive_changes_list(user)
-	dirty_entries = list(GDrive_Index.objects.filter(user=user, dirty=True))
+	dirty_entries = list(GDrive_Index.objects.filter(user=user, is_dirty=True))
 
-	for entry in remote_changes: # TODO
-		# move, delete, rename, create
-		if entry["fileId"] in dirty_entries:
-			pass # both local and remote is dirty, ask user
-		else: 
-			gdrive_download_file(user, entry.id, None)
+	# TODO
+	# remote_changes = gdrive_changes_list(user)
+	# for entry in remote_changes:
+	# 	# move, delete, rename, create
+	# 	if entry["fileId"] in dirty_entries:
+	# 		pass # both local and remote is dirty, ask user
+	# 	else: 
+	# 		gdrive_download_file(user, entry.id, None)
 
 	for entry in dirty_entries:
 		full_path = join(user.root_path, entry.path)
@@ -81,66 +82,73 @@ def gdrive_check_dirty(user): # TODO: test
 					dirty_entries.append(entry)
 					continue
 			else: parent_id = entry.parent_gdrive_id
-			gdrive_create_file(user, full_path, parent_id)
+			gdrive_upload_file(user, entry)
 		else: # file or folder was modified
-			pass # TODO: update file content
+			gdrive_upload_file(user, entry)
 		entry.is_dirty = False
 		entry.save()
 
 
-def gdrive_delete(user, g_id): # works on folders too
+def gdrive_delete(user, index_entry): # works on folders too
 	session = create_session(user)
-	url = "https://www.googleapis.com/drive/v3/files/{}".format(g_id)
+	url = "https://www.googleapis.com/drive/v3/files/{}".format(index_entry.gdrive_id)
 	res = session.delete(url)
+	index_entry.delete()
 	return res
 
 
-def gdrive_download_file(user, g_id, relative_path):
+def gdrive_download_file(user, index_entry): # TODO: what about folders?
 	session = create_session(user)
-	url = "https://www.googleapis.com/drive/v3/files/{}?alt=media".format(g_id)
+	url = "https://www.googleapis.com/drive/v3/files/{}?alt=media".format(index_entry.gdrive_id)
 	res = session.get(url)
 	if res.status_code==200:
-		dest = join(user.root_path, relative_path)
+		dest = join(user.root_path, index_entry.path)
 		with open(dest, 'wb') as f:
 			f.write(res.content)
 	return res
 
 
-def gdrive_upload_file(user, relative_path): # TODO: what about folders?
-	full_path = join(user.root_path, relative_path)
+def gdrive_upload_file(user, index_entry): # TODO: what about folders?
+	full_path = join(user.root_path, index_entry.path)
 	session = create_session(user)
 	session.headers["Content-type"] = "application/json; charset=UTF-8"
 	session.headers["Content-Length"] = str(os_getsize(full_path))
 
-	entry = GDrive_Index.objects.get(user=user, path=relative_path)
-	print("gid ", entry.gdrive_id, "  pid ", entry.parent_gdrive_id)
-	parents = [entry.parent_gdrive_id] if entry.parent_gdrive_id else []
+	parents = [index_entry.parent_gdrive_id] if index_entry.parent_gdrive_id else []
 	body = json.dumps({
-		'name': basename(relative_path),
+		'name': basename(index_entry.path),
 		'parents[]': parents
 		})
 
-	if entry.gdrive_id=="": # first upload
+	if index_entry.gdrive_id=="": # first upload
 		url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable"
 		res = session.post(url, body)
 	else: # update
 		url = "https://www.googleapis.com/upload/drive/v3/files/{}?uploadType=resumable" \
-			.format(entry.gdrive_id)
+			.format(index_entry.gdrive_id)
 		res = session.patch(url, body)
-	print("url ", url)
-	print("res1 ", res)
+
 	session_uri = res.headers['location'] # should save this somewhere to resume
 	del session.headers["Content-type"]
 	with open(full_path, 'rb') as f:
 		body = f.read()
 	res = session.put(session_uri, body).json()
-	entry.gdrive_id = res["id"]
-	entry.save()
-	print("res2 ", res)
+	index_entry.gdrive_id = res["id"]
+	index_entry.save()
+	return res
 
 
-def gdrive_move_file(file_id, old_parent_id, new_parent_id):
-	pass #TODO
+def gdrive_move_file(user, file_id, new_parent_id): # TODO: test
+	session = create_session(user)
+	session.headers["Content-type"] = "application/json; charset=UTF-8"
+	body = json.dumps({
+		'parents[]': [new_parent_id]
+		})
+	url = "https://www.googleapis.com/upload/drive/v3/files/{}?uploadType=resumable" \
+		.format(file_id)
+	res = session.patch(url, body)
+	return res
+
 
 def gdrive_changes_start_page(user):
 	session = create_session(user)
