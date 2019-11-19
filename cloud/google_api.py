@@ -17,8 +17,16 @@ from cloud.models import GDrive_Index, Google_Tokens
 @login_required
 def test_endpoint(request):
 	#gdrive_synch_file_or_folder(request.user, "jd25yqv8xsf31.jpg")
-	gdrive_upload_file(request.user, "jd25yqv8xsf31.jpg")
-
+	#gdrive_upload_file(request.user, "jd25yqv8xsf31.jpg")
+	# print(gdrive_list(request.user))
+	m = gdrive_move_file(
+		request.user,
+		"1TRBE7xEi6u62r0rGYNiEy8bBt2IBNrfc",
+		"0AP2aWwcOz4g_Uk9PVA",
+		"1t77pJgSUIWKwLftcy4F6Nm6apia-srkC"
+	)
+	print(m.json())
+	#print(gdrive_get_info(request.user, "0AP2aWwcOz4g_Uk9PVA","1TRBE7xEi6u62r0rGYNiEy8bBt2IBNrfc"))
 
 	return HttpResponse(status=204)
 
@@ -47,7 +55,7 @@ def gdrive_synch_file_or_folder(user, relative_path):
 			parent_gdrive_id = parent_id,
 			path = relative_path,
 			is_dirty = True,
-			is_dir = False
+			is_dir = isdir(full_path)
 		)
 		new_entry.save()
 
@@ -57,7 +65,7 @@ def gdrive_synch_file_or_folder(user, relative_path):
 			gdrive_synch_file_or_folder(user, entry_rel_path)
 
 
-def gdrive_check_dirty(user): # TODO: test
+def gdrive_check_dirty(user):
 	dirty_entries = list(GDrive_Index.objects.filter(user=user, is_dirty=True))
 
 	# TODO
@@ -76,7 +84,7 @@ def gdrive_check_dirty(user): # TODO: test
 				gdrive_delete(user, entry.gdrive_id)
 			entry.delete()
 		elif entry.gdrive_id=="": # not yet uploaded
-			if entry.parent_gdrive_id=="": # TODO: test
+			if entry.parent_gdrive_id=="":
 				parent_id = gdrive_get_parent_id(user, entry.path)
 				if parent_id=="":
 					dirty_entries.append(entry)
@@ -138,15 +146,12 @@ def gdrive_upload_file(user, index_entry): # TODO: what about folders?
 	return res
 
 
-def gdrive_move_file(user, file_id, new_parent_id): # TODO: test
+def gdrive_move_file(user, file_id, old_parent_id, new_parent_id):
 	session = create_session(user)
 	session.headers["Content-type"] = "application/json; charset=UTF-8"
-	body = json.dumps({
-		'parents[]': [new_parent_id]
-		})
-	url = "https://www.googleapis.com/upload/drive/v3/files/{}?uploadType=resumable" \
-		.format(file_id)
-	res = session.patch(url, body)
+	url = "https://www.googleapis.com/drive/v3/files/{}?addParents={}&removeParents={}" \
+		.format(file_id, new_parent_id, old_parent_id)
+	res = session.patch(url, json.dumps({}))
 	return res
 
 
@@ -179,6 +184,11 @@ def gdrive_list(user):
 	res = session.get(url).json()
 	return res
 
+# def gdrive_get_info(user, file_id):
+# 	session = create_session(user)
+# 	url = "https://www.googleapis.com/drive/v3/files/{}?fields=parents".format(file_id)
+# 	res = session.get(url).json()
+# 	return res	
 
 def gdrive_get_parent_id(user, relative_path):
 	parent_path = os_split(relative_path)[0]
