@@ -19,13 +19,13 @@ def test_endpoint(request):
 	#gdrive_synch_file_or_folder(request.user, "jd25yqv8xsf31.jpg")
 	#gdrive_upload_file(request.user, "jd25yqv8xsf31.jpg")
 	# print(gdrive_list(request.user))
-	m = gdrive_move_file(
-		request.user,
-		"1TRBE7xEi6u62r0rGYNiEy8bBt2IBNrfc",
-		"0AP2aWwcOz4g_Uk9PVA",
-		"1t77pJgSUIWKwLftcy4F6Nm6apia-srkC"
-	)
-	print(m.json())
+	# m = gdrive_move_file(
+	# 	request.user,
+	# 	"1TRBE7xEi6u62r0rGYNiEy8bBt2IBNrfc",
+	# 	"0AP2aWwcOz4g_Uk9PVA",
+	# 	"1t77pJgSUIWKwLftcy4F6Nm6apia-srkC"
+	# )
+	# print(m.json())
 	#print(gdrive_get_info(request.user, "0AP2aWwcOz4g_Uk9PVA","1TRBE7xEi6u62r0rGYNiEy8bBt2IBNrfc"))
 
 	return HttpResponse(status=204)
@@ -42,7 +42,7 @@ def create_session(user): # should I delete these after use?
 	)
 	return AuthorizedSession(credentials)
 
-# creates entries in the DB
+# only creates entries in the DB
 def gdrive_synch_file_or_folder(user, relative_path):
 	full_path = join(user.root_path, relative_path)
 	relative_path = relative_path.rstrip('/')
@@ -64,6 +64,12 @@ def gdrive_synch_file_or_folder(user, relative_path):
 			entry_rel_path = join(relative_path, entry.name)
 			gdrive_synch_file_or_folder(user, entry_rel_path)
 
+# checks if a file that is about to be created has to be synched as well
+# a new file has to be synched if is inside a synched folder
+def gdrive_check_if_has_to_be_synched(user, relative_path):
+	possible_parent_id = gdrive_get_parent_id(user, relative_path)
+	if not possible_parent_id==None:
+		gdrive_synch_file_or_folder(user, relative_path)
 
 def gdrive_check_dirty(user):
 	dirty_entries = list(GDrive_Index.objects.filter(user=user, is_dirty=True))
@@ -146,11 +152,13 @@ def gdrive_upload_file(user, index_entry): # TODO: what about folders?
 	return res
 
 
-def gdrive_move_file(user, file_id, old_parent_id, new_parent_id):
+def gdrive_move_file(user, index_entry, new_parent_id):
 	session = create_session(user)
 	session.headers["Content-type"] = "application/json; charset=UTF-8"
 	url = "https://www.googleapis.com/drive/v3/files/{}?addParents={}&removeParents={}" \
-		.format(file_id, new_parent_id, old_parent_id)
+		.format(index_entry.gdrive_id, new_parent_id, index_entry.parent_gdrive_id)
+	index_entry.parent_gdrive_id = new_parent_id
+	index_entry.save()
 	res = session.patch(url, json.dumps({}))
 	return res
 
@@ -183,12 +191,7 @@ def gdrive_list(user):
 	url = "https://www.googleapis.com/drive/v3/files"
 	res = session.get(url).json()
 	return res
-
-# def gdrive_get_info(user, file_id):
-# 	session = create_session(user)
-# 	url = "https://www.googleapis.com/drive/v3/files/{}?fields=parents".format(file_id)
-# 	res = session.get(url).json()
-# 	return res	
+	
 
 def gdrive_get_parent_id(user, relative_path):
 	parent_path = os_split(relative_path)[0]
@@ -198,6 +201,13 @@ def gdrive_get_parent_id(user, relative_path):
 	except GDrive_Index.DoesNotExist:
 		parent_id = None
 	return parent_id
+
+# def gdrive_get_info(user, file_id):
+# 	session = create_session(user)
+# 	url = "https://www.googleapis.com/drive/v3/files/{}?fields=parents".format(file_id)
+# 	res = session.get(url).json()
+# 	return res
+
 
 # def check_gphotos_soft(user):
 # 	local_photos = GoogleSync.objects.filter(

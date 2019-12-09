@@ -63,7 +63,9 @@ def oauth2_callback(request):
 	return redirect('/cloud')
 
 @login_required
-def get_info(request): # as of now it only returns info about sync
+def get_info(request): #TODO
+	# as of now it only returns info about sync
+
 	#root = request.user.root_path
 	try:
 		path = request.POST['path']
@@ -97,16 +99,23 @@ def get_folder(request):
 
 @login_required
 def delete(request): #what if it has to delete a folder, like pics_default?
-	#if gdrive_id=="" I must delete the entry from the DB too
 	try:
 		folder = os.path.join(request.user.root_path, request.POST['folder'])
-		for path in os.path.join(request.user.root_path, request.POST['to_delete[]']):
+		for path in request.POST['to_delete[]']: # path is relative to user root
 			old = os.path.join(request.user.root_path, path)
 			new = os.path.join(request.user.trash_path, os.path.basename(path))
 			while(os.path.exists(new)): new += '.copy'
 			os.rename(old, new)
 
-		# manage trash
+			try:
+				entry = GDrive_Index.objects.get(user=request.user, path=path)
+				entry.is_dirty = True
+				entry.save()
+			except GDrive_Index.DoesNotExist:
+				pass
+
+		# TODO: manage trash		
+
 		files = scan_folder(folder)
 		return JsonResponse(files, safe=False)
 
@@ -125,6 +134,15 @@ def rename(request):
 		while(os.path.exists(new)): new += '.copy'
 		os.rename(old, new)
 
+		try:
+			entry = GDrive_Index.objects.get(user=request.user, 
+				path=request.POST['old_path'])
+			entry.is_dirty = True
+			entry.path = request.POST['new_path']
+			entry.save()
+		except GDrive_Index.DoesNotExist:
+			pass		
+
 		files = scan_folder(folder)
 		return JsonResponse(files, safe=False)
 		
@@ -141,6 +159,9 @@ def create_folder(request):
 		full_path = os.path.join(folder, request.POST['name'])
 		os.makedirs(full_path)
 
+		google_api.gdrive_check_if_has_to_be_synched(request.user, 
+			os.path.join(request.POST['folder'], request.POST['name']))
+
 		files = scan_folder(folder)
 		return JsonResponse(files, safe=False)
 
@@ -155,7 +176,6 @@ def copy(request):
 	try:
 		paths = []
 		for path in request.POST.getlist('to_copy[]'):
-			print('path', path)
 			paths.append(os.path.join(request.user.root_path, path))
 	except KeyError:
 		return HttpResponse(status=400)
@@ -183,8 +203,17 @@ def paste(request):
 		for path in request.session['clipboard']:
 			new_path = os.path.join(destination, os.path.basename(path))
 			while(os.path.exists(new_path)): new_path += '.copy'
-			if mode == 'cut': os.rename(path, new_path)
-			elif mode == 'copy': sh_copy(path, new_path)
+			if mode == 'cut':
+				os.rename(path, new_path)
+				try:
+					entry = GDrive_Index.objects.get(user=request.user, path=path)
+					entry.is_dirty = True
+					entry.path = new_path
+					entry.save()
+				except GDrive_Index.DoesNotExist:
+					pass
+			elif mode == 'copy':
+				sh_copy(path, new_path)
 		if mode == 'cut': del request.session['clipboard']
 		files = scan_folder(destination)
 		return JsonResponse(files, safe=False)
@@ -204,6 +233,8 @@ def upload_files(request):
 		with open(full_path, 'wb+') as f:
 			for chunk in uploaded_file.chunks():
 				f.write(chunk)
+		google_api.gdrive_check_if_has_to_be_synched(request.user, 
+			os.path.join(request.POST['folder'], uploaded_file.name))
 
 	files = scan_folder(folder)
 	return JsonResponse(files, safe=False)

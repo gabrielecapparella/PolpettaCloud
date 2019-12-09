@@ -15,7 +15,6 @@ class GoogleApiTest(unittest.TestCase):
 		#GDrive_Index.objects.filter(user=self.user).delete()
 		pass
 
-
 	def test_upload_and_delete_file(self): # I know, not an unit test
 		test_file = GDrive_Index.objects.create(
 			user = self.user,
@@ -32,7 +31,6 @@ class GoogleApiTest(unittest.TestCase):
 		self.assertEqual(delete.status_code, 204)
 		self.assertEqual(test_file.id, None)
 
-
 	def test_check_dirty_was_deleted(self):
 		with patch.object(g_api, 'gdrive_delete') as mock:
 			GDrive_Index.objects.create(
@@ -45,7 +43,6 @@ class GoogleApiTest(unittest.TestCase):
 			)
 			g_api.gdrive_check_dirty(self.user)
 			mock.assert_called()
-
 
 	def test_check_dirty_new_single_file(self):
 		with patch.object(g_api, 'gdrive_upload_file') as mock:
