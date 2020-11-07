@@ -1,16 +1,70 @@
-document.onselectstart = function() {
-    return false;
-}
+// document.onselectstart = function(e) {
+//     if (e.shiftKey) return false;
+// }
 
 $(document).ready(function() {
-	var selected_entries = [];
-	var last_selected_index = -1;
-	var files = [];
+	let current_folder = window.location.pathname.replace(/^(\/cloud\/)/, "").replace(/^(-\/)/, "");
+	let last_selected_index = -1;
+	let files = [];
 
-	open_folder(current_folder);
+	$('#parent').prop('disabled', !current_folder);
+	$('header').html('PolpettaCloud - /'+current_folder);
+
+	$.ajax({
+		type: "POST",
+		url: "/cloud/get-folder",
+		data: { 'folder': current_folder },
+		success: function(data) {
+			fill_table(data);
+		}
+	});
+
+	$('#table-files').on("mousedown", function(e) {
+		if (e.shiftKey) e.preventDefault();
+	});
+
+	$('#table-files').on("click", "tbody tr", function(event) {
+			console.log(event.shiftKey);
+			console.log(last_selected_index);
+			if (event.ctrlKey) {
+				$(this).toggleClass('checked-table-row');
+				last_selected_index = $(this).index();
+			} else if (event.shiftKey && last_selected_index>-1) {
+				let indexes = [$(this).index(), last_selected_index];
+				indexes.sort(function(a, b){return a-b});
+				for (let i = indexes[0]; i <= indexes[1]; i++) {
+					$('#table-files tbody tr').eq(i).addClass('checked-table-row');
+				}
+				last_selected_index = -1;
+			} else {
+				$('#table-files>tbody>tr').removeClass('checked-table-row');
+				$(this).addClass('checked-table-row');
+				last_selected_index = $(this).index();
+			}
+
+			let selected_entries = [];
+			$('.checked-table-row').each(function() {
+				selected_entries.push(current_folder+$(this).find(".entry-name").text());
+			});
+
+			let l = selected_entries.length
+			$('#copy').prop('disabled', !l);
+			$('#cut').prop('disabled', !l);
+			$('#delete').prop('disabled', !l);
+			$('#rename').prop('disabled', l!=1);
+			console.log(selected_entries);
+			fill_info(selected_entries);
+		});
+		$('#table-files').on("dblclick", ".type-dir", function() {
+			if (!current_folder) {
+				window.location.href = window.location.href+"-/"+$(this).html()+'/';
+			} else {
+				window.location.href = window.location.href+$(this).html()+'/';
+			}
+		});
 
 	$('#parent').click(function(){
-		open_folder(current_folder.replace(/[^/]+\/$/, ''));
+		window.location.href = window.location.href.replace(/[^/]+\/$/, ''); // magic
 	});
 
 	$('#delete').click(function(){
@@ -124,7 +178,7 @@ $(document).ready(function() {
 		$('#upload-files-hidden').val('');
 	});
 
-	$('#synch-drive').click(function(){
+/*	$('#synch-drive').click(function(){
 		if (selected_entries.length!=1) return;
 		$.ajax({
 			url: '/cloud/synch-gdrive',
@@ -134,9 +188,9 @@ $(document).ready(function() {
 			},
 			success: fill_info
 		});
-	});
+	});*/
 
-	function fill_info() {
+	function fill_info(selected_entries) {
 		if (selected_entries.length<1) { 
 			// TODO: main folder
 		} else if (selected_entries.length==1) {
@@ -163,11 +217,10 @@ $(document).ready(function() {
 	}
 
 	function fill_table(entries) {
-		selected_entries = [];
-		last_selected = null;
+		last_selected_index = -1;
 		files = entries;
 
-		content = '';
+		let content = '';
 		entries.forEach(function(entry) {
 			content += '<tr>';
 			content += '<td class="entry-name type-'+entry['type']+'">'+entry['name']+'</td>';
@@ -176,58 +229,5 @@ $(document).ready(function() {
 			content += '</tr>';
 		});
 		$('#table-files tbody').html(content);
-		$('#table-files tbody tr').unbind("click").click( function(event) {
-			console.log(event.shiftKey);
-			console.log(last_selected_index);
-			if (event.ctrlKey) {
-				$(this).toggleClass('checked-table-row');
-				last_selected_index = $(this).index();
-			} else if (event.shiftKey && last_selected_index>-1) {
-				indexes = [$(this).index(), last_selected_index];
-				indexes.sort(function(a, b){return a-b});
-				for (var i = indexes[0]; i <= indexes[1]; i++) {
-					$('#table-files tbody tr').eq(i).addClass('checked-table-row');
-				}
-				last_selected_index = -1;
-			} else {
-				$('#table-files>tbody>tr').removeClass('checked-table-row');
-				$(this).addClass('checked-table-row');
-				last_selected_index = $(this).index();
-			}
-
-			selected_entries = [];
-			$('.checked-table-row').each(function() {
-				selected_entries.push(current_folder+$(this).find(".entry-name").text());
-			});	
-
-			l = selected_entries.length
-			$('#copy').prop('disabled', !l);
-			$('#cut').prop('disabled', !l);
-			$('#delete').prop('disabled', !l);
-			$('#rename').prop('disabled', l!=1);
-			console.log(selected_entries);
-			fill_info();
-		});
-
-		$('.entry-name.type-dir').unbind("dblclick").dblclick(function() {
-			open_folder(selected_entries+'/');
-		});		
 	}
-
-	function open_folder(path) {
-		current_folder = path;
-		$.ajax({
-			type: "POST",
-			url: "/cloud/get-folder",
-			data: {
-			  'folder': path
-			},
-			success: function(data) {
-				fill_table(data);
-				$('#parent').prop('disabled', !current_folder);
-				$('header').html('PolpettaCloud - /'+current_folder);
-			}
-		});
-	}
-
 });

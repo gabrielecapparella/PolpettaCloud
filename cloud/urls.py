@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.generic import RedirectView
 
 from . import views
 from . import google_api
@@ -13,6 +14,7 @@ urlpatterns = [
 	path('google-consent', views.google_consent),
 	path('oauth2callback', views.oauth2_callback),
 	path('-/<path:folder>/', views.index),
+	path('-/', RedirectView.as_view(url='/cloud')),
 	path('get-folder', views.get_folder),
 	path('delete', views.delete),
 	path('rename', views.rename),
@@ -22,7 +24,11 @@ urlpatterns = [
 	path('paste', views.paste),
 	path('upload-files', views.upload_files),
 	path('get-info', views.get_info),
-	path('synch-gdrive', views.google_drive_synch),
+
+	path('get-file/<path:file_path>', views.get_file),
+	#url(r'^get-file/', views.get_file),
+
+	#path('synch-gdrive', views.google_drive_synch),
 
 	path('test', google_api.test_endpoint),
 	#path('upload-photo', google_api.upload_photo)

@@ -1,6 +1,7 @@
 passwords.py
 __pycache__/
-.vscode/
+venv/
+.idea/
 cloud_root/
 cloud_trash/
 db.sqlite3

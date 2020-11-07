@@ -11,9 +11,10 @@ from shutil import copy as sh_copy
 
 
 @login_required
-def index(request, folder = ''):
+def index(request, folder=''):
 	print(folder)
-	return render(request, 'cloud/index.html', {'folder':folder})
+	return render(request, 'cloud/index.html', {'folder': folder})
+
 
 def login_action(request):
 	username = request.POST['usr']
@@ -22,19 +23,21 @@ def login_action(request):
 	if user is not None:
 		login(request, user)
 		return redirect('/cloud')
-	return "nope"
+	return HttpResponse(status=403)
+
 
 def login_user(request):
-	return render(request, 'cloud/login.html')	
+	return render(request, 'cloud/login.html')
+
 
 @login_required
 def google_consent(request):
 	scopes = [
 		'https://www.googleapis.com/auth/photoslibrary',
 		'https://www.googleapis.com/auth/drive'
-		]
+	]
 	flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-		'client_secret.json', 
+		'client_secret.json',
 		scopes=scopes)
 	flow.redirect_uri = 'http://localhost:8000/cloud/oauth2callback'
 	authorization_url, state = flow.authorization_url(
@@ -47,10 +50,11 @@ def google_consent(request):
 
 	return redirect(authorization_url)
 
+
 def oauth2_callback(request):
 	user_tokens = Google_Tokens.objects.get(user=request.user)
 	flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-		'client_secret.json', 
+		'client_secret.json',
 		scopes=None)
 	flow.code_verifier = user_tokens.g_token
 	flow.redirect_uri = 'http://localhost:8000/cloud/oauth2callback'
@@ -62,32 +66,33 @@ def oauth2_callback(request):
 
 	return redirect('/cloud')
 
+
 @login_required
-def get_info(request): #TODO
+def get_info(request):  # TODO
 	# as of now it only returns info about sync
 
-	#root = request.user.root_path
+	# root = request.user.root_path
 	try:
 		path = request.POST['path']
 	except KeyError:
 		return HttpResponse(status=400)
-	
-	q = GDrive_Index.objects.filter(user=request.user, path=path).exists()
-	if q:
-		info = {"gdrive_sync":True}
-	else:
-		info = {"gdrive_sync":False}
+	info = {}
+	# q = GDrive_Index.objects.filter(user=request.user, path=path).exists()
+	# if q:
+	# 	info = {"gdrive_sync": True}
+	# else:
+	# 	info = {"gdrive_sync": False}
 
 	return JsonResponse(info, safe=False)
 
-@login_required
+
 def get_folder(request):
 	root = request.user.root_path
 	try:
 		folder = os.path.join(root, request.POST['folder'])
 	except KeyError:
 		return HttpResponse(status=400)
-	
+
 	try:
 		files = scan_folder(folder)
 	except OSError as e:
@@ -97,22 +102,23 @@ def get_folder(request):
 
 	return JsonResponse(files, safe=False)
 
+
 @login_required
-def delete(request): #what if it has to delete a folder, like pics_default?
+def delete(request):  # what if it has to delete a folder, like pics_default?
 	try:
 		folder = os.path.join(request.user.root_path, request.POST['folder'])
-		for path in request.POST['to_delete[]']: # path is relative to user root
+		for path in request.POST.getlist('to_delete[]'):  # path is relative to user root
 			old = os.path.join(request.user.root_path, path)
 			new = os.path.join(request.user.trash_path, os.path.basename(path))
-			while(os.path.exists(new)): new += '.copy'
+			while os.path.exists(new): new += '.copy'
 			os.rename(old, new)
 
-			try:
-				entry = GDrive_Index.objects.get(user=request.user, path=path)
-				entry.is_dirty = True
-				entry.save()
-			except GDrive_Index.DoesNotExist:
-				pass
+			# try:
+			# 	entry = GDrive_Index.objects.get(user=request.user, path=path)
+			# 	entry.is_dirty = True
+			# 	entry.save()
+			# except GDrive_Index.DoesNotExist:
+			# 	pass
 
 		# TODO: manage trash		
 
@@ -122,8 +128,10 @@ def delete(request): #what if it has to delete a folder, like pics_default?
 	except KeyError:
 		return HttpResponse(status=400)
 
-	except OSError:
+	except OSError as e:
+		print(e)
 		return HttpResponse(status=422)
+
 
 @login_required
 def rename(request):
@@ -131,26 +139,27 @@ def rename(request):
 		folder = os.path.join(request.user.root_path, request.POST['folder'])
 		old = os.path.join(request.user.root_path, request.POST['old_path'])
 		new = os.path.join(request.user.root_path, request.POST['new_path'])
-		while(os.path.exists(new)): new += '.copy'
+		while os.path.exists(new): new += '.copy'
 		os.rename(old, new)
 
-		try:
-			entry = GDrive_Index.objects.get(user=request.user, 
-				path=request.POST['old_path'])
-			entry.is_dirty = True
-			entry.path = request.POST['new_path']
-			entry.save()
-		except GDrive_Index.DoesNotExist:
-			pass		
+		# try:
+		# 	entry = GDrive_Index.objects.get(user=request.user,
+		# 									 path=request.POST['old_path'])
+		# 	entry.is_dirty = True
+		# 	entry.path = request.POST['new_path']
+		# 	entry.save()
+		# except GDrive_Index.DoesNotExist:
+		# 	pass
 
 		files = scan_folder(folder)
 		return JsonResponse(files, safe=False)
-		
+
 	except OSError:
 		return HttpResponse(status=422)
-		
+
 	except KeyError:
 		return HttpResponse(status=400)
+
 
 @login_required
 def create_folder(request):
@@ -159,17 +168,18 @@ def create_folder(request):
 		full_path = os.path.join(folder, request.POST['name'])
 		os.makedirs(full_path)
 
-		google_api.gdrive_check_if_has_to_be_synched(request.user, 
-			os.path.join(request.POST['folder'], request.POST['name']))
+		#google_api.gdrive_check_if_has_to_be_synched(request.user,
+		#											 os.path.join(request.POST['folder'], request.POST['name']))
 
 		files = scan_folder(folder)
 		return JsonResponse(files, safe=False)
 
 	except OSError:
 		return HttpResponse(status=422)
-		
+
 	except KeyError:
 		return HttpResponse(status=400)
+
 
 @login_required
 def copy(request):
@@ -183,6 +193,7 @@ def copy(request):
 	request.session['clipboard_mode'] = 'copy'
 	return HttpResponse(status=204)
 
+
 @login_required
 def cut(request):
 	try:
@@ -195,6 +206,7 @@ def cut(request):
 	request.session['clipboard_mode'] = 'cut'
 	return HttpResponse(status=204)
 
+
 @login_required
 def paste(request):
 	try:
@@ -202,16 +214,16 @@ def paste(request):
 		mode = request.session['clipboard_mode']
 		for path in request.session['clipboard']:
 			new_path = os.path.join(destination, os.path.basename(path))
-			while(os.path.exists(new_path)): new_path += '.copy'
+			while os.path.exists(new_path): new_path += '.copy'
 			if mode == 'cut':
 				os.rename(path, new_path)
-				try:
-					entry = GDrive_Index.objects.get(user=request.user, path=path)
-					entry.is_dirty = True
-					entry.path = new_path
-					entry.save()
-				except GDrive_Index.DoesNotExist:
-					pass
+				# try:
+				# 	entry = GDrive_Index.objects.get(user=request.user, path=path)
+				# 	entry.is_dirty = True
+				# 	entry.path = new_path
+				# 	entry.save()
+				# except GDrive_Index.DoesNotExist:
+				# 	pass
 			elif mode == 'copy':
 				sh_copy(path, new_path)
 		if mode == 'cut': del request.session['clipboard']
@@ -225,6 +237,7 @@ def paste(request):
 		print(e)
 		return HttpResponse(status=422)
 
+
 @login_required
 def upload_files(request):
 	folder = os.path.join(request.user.root_path, request.POST['folder'])
@@ -233,21 +246,36 @@ def upload_files(request):
 		with open(full_path, 'wb+') as f:
 			for chunk in uploaded_file.chunks():
 				f.write(chunk)
-		google_api.gdrive_check_if_has_to_be_synched(request.user, 
-			os.path.join(request.POST['folder'], uploaded_file.name))
+#		google_api.gdrive_check_if_has_to_be_synched(request.user,
+#													 os.path.join(request.POST['folder'], uploaded_file.name))
 
 	files = scan_folder(folder)
 	return JsonResponse(files, safe=False)
 
-@login_required
-def upload_folder(request): # TODO
-	return HttpResponse('ok')
 
 @login_required
-def google_drive_synch(request):
-	rel_path = os.path.join(request.POST['path'])
-	google_api.gdrive_synch_file_or_folder(request.user, rel_path)
-	return HttpResponse(status=204)
+def upload_folder(request):  # TODO
+	return HttpResponse('ok')
+
+
+@login_required
+def get_file(request, file_path):
+	# path: /username/path/to/file.txt
+	#print("quack")
+	if request.user.username == "test":
+		response = HttpResponse()
+		response['X-Accel-Redirect'] = '/files/' + file_path #request.path.replace("/cloud/get-file/", "")
+		return response
+	else:
+		return HttpResponse(status=403)
+
+
+# @login_required
+# def google_drive_synch(request):
+# 	rel_path = os.path.join(request.POST['path'])
+# 	google_api.gdrive_synch_file_or_folder(request.user, rel_path)
+# 	return HttpResponse(status=204)
+
 
 def scan_folder(path):
 	files = []
@@ -260,7 +288,8 @@ def scan_folder(path):
 		})
 	return files
 
-def get_size(entry): 
+
+def get_size(entry):
 	if entry.is_file():
 		return os.stat(entry.path).st_size
 	else:
@@ -269,13 +298,15 @@ def get_size(entry):
 			size += get_size(i)
 	return size
 
+
 def readable_size(size):
 	for i in ("B", "KB", "MB", "GB", "TB"):
-		if size/1000>=1:	
-			size/=1000
+		if size / 1000 >= 1:
+			size /= 1000
 		else:
 			break
-	return str(round(size, 1))+i
+	return str(round(size, 1)) + i
+
 
 def get_last_mod(entry):
 	timestamp = os.stat(entry.path).st_mtime

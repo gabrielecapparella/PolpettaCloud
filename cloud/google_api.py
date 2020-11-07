@@ -1,4 +1,3 @@
-
 from os.path import basename, join, exists, isdir
 from os.path import split as os_split
 from os.path import getsize as os_getsize
@@ -16,8 +15,8 @@ from cloud.models import GDrive_Index, Google_Tokens
 
 @login_required
 def test_endpoint(request):
-	#gdrive_synch_file_or_folder(request.user, "jd25yqv8xsf31.jpg")
-	#gdrive_upload_file(request.user, "jd25yqv8xsf31.jpg")
+	# gdrive_synch_file_or_folder(request.user, "jd25yqv8xsf31.jpg")
+	# gdrive_upload_file(request.user, "jd25yqv8xsf31.jpg")
 	# print(gdrive_list(request.user))
 	# m = gdrive_move_file(
 	# 	request.user,
@@ -26,21 +25,22 @@ def test_endpoint(request):
 	# 	"1t77pJgSUIWKwLftcy4F6Nm6apia-srkC"
 	# )
 	# print(m.json())
-	#print(gdrive_get_info(request.user, "0AP2aWwcOz4g_Uk9PVA","1TRBE7xEi6u62r0rGYNiEy8bBt2IBNrfc"))
+	# print(gdrive_get_info(request.user, "0AP2aWwcOz4g_Uk9PVA","1TRBE7xEi6u62r0rGYNiEy8bBt2IBNrfc"))
 
 	return HttpResponse(status=204)
 
 
-def create_session(user): # should I delete these after use?
-	tokens = Google_Tokens.objects.get(user = user)
+def create_session(user):  # should I delete these after use?
+	tokens = Google_Tokens.objects.get(user=user)
 	credentials = google.oauth2.credentials.Credentials(
-		token = tokens.g_token,
-		refresh_token = tokens.g_refresh_token,
-		client_id = settings.CLIENT_ID,
-		client_secret = settings.CLIENT_SECRET,
-		token_uri = settings.TOKEN_URI
+		token=tokens.g_token,
+		refresh_token=tokens.g_refresh_token,
+		client_id=settings.CLIENT_ID,
+		client_secret=settings.CLIENT_SECRET,
+		token_uri=settings.TOKEN_URI
 	)
 	return AuthorizedSession(credentials)
+
 
 # only creates entries in the DB
 def gdrive_synch_file_or_folder(user, relative_path):
@@ -50,12 +50,12 @@ def gdrive_synch_file_or_folder(user, relative_path):
 
 	if not GDrive_Index.objects.filter(user=user, path=relative_path).exists():
 		new_entry = GDrive_Index(
-			user = user,
-			gdrive_id = "",
-			parent_gdrive_id = parent_id,
-			path = relative_path,
-			is_dirty = True,
-			is_dir = isdir(full_path)
+			user=user,
+			gdrive_id="",
+			parent_gdrive_id=parent_id,
+			path=relative_path,
+			is_dirty=True,
+			is_dir=isdir(full_path)
 		)
 		new_entry.save()
 
@@ -64,12 +64,14 @@ def gdrive_synch_file_or_folder(user, relative_path):
 			entry_rel_path = join(relative_path, entry.name)
 			gdrive_synch_file_or_folder(user, entry_rel_path)
 
+
 # checks if a file that is about to be created has to be synched as well
 # a new file has to be synched if is inside a synched folder
 def gdrive_check_if_has_to_be_synched(user, relative_path):
 	possible_parent_id = gdrive_get_parent_id(user, relative_path)
-	if not possible_parent_id==None:
+	if not possible_parent_id == None:
 		gdrive_synch_file_or_folder(user, relative_path)
+
 
 def gdrive_check_dirty(user):
 	dirty_entries = list(GDrive_Index.objects.filter(user=user, is_dirty=True))
@@ -85,25 +87,26 @@ def gdrive_check_dirty(user):
 
 	for entry in dirty_entries:
 		full_path = join(user.root_path, entry.path)
-		if not exists(full_path): # file was deleted
+		if not exists(full_path):  # file was deleted
 			if entry.gdrive_id:
 				gdrive_delete(user, entry.gdrive_id)
 			entry.delete()
-		elif entry.gdrive_id=="": # not yet uploaded
-			if entry.parent_gdrive_id=="":
+		elif entry.gdrive_id == "":  # not yet uploaded
+			if entry.parent_gdrive_id == "":
 				parent_id = gdrive_get_parent_id(user, entry.path)
-				if parent_id=="":
+				if parent_id == "":
 					dirty_entries.append(entry)
 					continue
-			else: parent_id = entry.parent_gdrive_id
+			else:
+				parent_id = entry.parent_gdrive_id
 			gdrive_upload_file(user, entry)
-		else: # file or folder was modified
+		else:  # file or folder was modified
 			gdrive_upload_file(user, entry)
 		entry.is_dirty = False
 		entry.save()
 
 
-def gdrive_delete(user, index_entry): # works on folders too
+def gdrive_delete(user, index_entry):  # works on folders too
 	session = create_session(user)
 	url = "https://www.googleapis.com/drive/v3/files/{}".format(index_entry.gdrive_id)
 	res = session.delete(url)
@@ -111,18 +114,18 @@ def gdrive_delete(user, index_entry): # works on folders too
 	return res
 
 
-def gdrive_download_file(user, index_entry): # TODO: what about folders?
+def gdrive_download_file(user, index_entry):  # TODO: what about folders?
 	session = create_session(user)
 	url = "https://www.googleapis.com/drive/v3/files/{}?alt=media".format(index_entry.gdrive_id)
 	res = session.get(url)
-	if res.status_code==200:
+	if res.status_code == 200:
 		dest = join(user.root_path, index_entry.path)
 		with open(dest, 'wb') as f:
 			f.write(res.content)
 	return res
 
 
-def gdrive_upload_file(user, index_entry): # TODO: what about folders?
+def gdrive_upload_file(user, index_entry):  # TODO: what about folders?
 	full_path = join(user.root_path, index_entry.path)
 	session = create_session(user)
 	session.headers["Content-type"] = "application/json; charset=UTF-8"
@@ -132,17 +135,17 @@ def gdrive_upload_file(user, index_entry): # TODO: what about folders?
 	body = json.dumps({
 		'name': basename(index_entry.path),
 		'parents[]': parents
-		})
+	})
 
-	if index_entry.gdrive_id=="": # first upload
+	if index_entry.gdrive_id == "":  # first upload
 		url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable"
 		res = session.post(url, body)
-	else: # update
+	else:  # update
 		url = "https://www.googleapis.com/upload/drive/v3/files/{}?uploadType=resumable" \
 			.format(index_entry.gdrive_id)
 		res = session.patch(url, body)
 
-	session_uri = res.headers['location'] # should save this somewhere to resume
+	session_uri = res.headers['location']  # should save this somewhere to resume
 	del session.headers["Content-type"]
 	with open(full_path, 'rb') as f:
 		body = f.read()
@@ -179,7 +182,7 @@ def gdrive_changes_list(user):
 	url = "https://www.googleapis.com/drive/v3/changes"
 	params = {
 		"pageToken": user_tokens.gdrive_changes_token,
-		"restrictToMyDrive": True }
+		"restrictToMyDrive": True}
 	res = session.get(url, params=params).json()
 	user_tokens.gdrive_changes_token = res["newStartPageToken"]
 	user_tokens.save()
@@ -191,7 +194,7 @@ def gdrive_list(user):
 	url = "https://www.googleapis.com/drive/v3/files"
 	res = session.get(url).json()
 	return res
-	
+
 
 def gdrive_get_parent_id(user, relative_path):
 	parent_path = os_split(relative_path)[0]
@@ -201,6 +204,7 @@ def gdrive_get_parent_id(user, relative_path):
 	except GDrive_Index.DoesNotExist:
 		parent_id = None
 	return parent_id
+
 
 # def gdrive_get_info(user, file_id):
 # 	session = create_session(user)
