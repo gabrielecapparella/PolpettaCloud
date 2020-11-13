@@ -6,6 +6,7 @@ $(document).ready(function() {
 	let current_folder = window.location.pathname.replace(/^(\/cloud\/)/, "").replace(/^(-\/)/, "");
 	let last_selected_index = -1;
 	let files = [];
+	let selected_entries = [];
 
 	$('#parent').prop('disabled', !current_folder);
 	$('header').html('PolpettaCloud - /'+current_folder);
@@ -19,49 +20,25 @@ $(document).ready(function() {
 		}
 	});
 
-	$('#table-files').on("mousedown", function(e) {
+	$('#table-container, #grid-container').on("mousedown", function(e) {
 		if (e.shiftKey) e.preventDefault();
 	});
 
 	$('#table-files').on("click", "tbody tr", function(event) {
-			console.log(event.shiftKey);
-			console.log(last_selected_index);
-			if (event.ctrlKey) {
-				$(this).toggleClass('checked-table-row');
-				last_selected_index = $(this).index();
-			} else if (event.shiftKey && last_selected_index>-1) {
-				let indexes = [$(this).index(), last_selected_index];
-				indexes.sort(function(a, b){return a-b});
-				for (let i = indexes[0]; i <= indexes[1]; i++) {
-					$('#table-files tbody tr').eq(i).addClass('checked-table-row');
-				}
-				last_selected_index = -1;
-			} else {
-				$('#table-files>tbody>tr').removeClass('checked-table-row');
-				$(this).addClass('checked-table-row');
-				last_selected_index = $(this).index();
-			}
+		click_entry(event, $(this), '#table-files tbody tr');
+	});
 
-			let selected_entries = [];
-			$('.checked-table-row').each(function() {
-				selected_entries.push(current_folder+$(this).find(".entry-name").text());
-			});
+	$('#grid-container').on("click", ".grid-element", function(event) {
+		click_entry(event, $(this), '#grid-container>.grid-element');
+	});
 
-			let l = selected_entries.length
-			$('#copy').prop('disabled', !l);
-			$('#cut').prop('disabled', !l);
-			$('#delete').prop('disabled', !l);
-			$('#rename').prop('disabled', l!=1);
-			console.log(selected_entries);
-			fill_info(selected_entries);
-		});
-		$('#table-files').on("dblclick", ".type-dir", function() {
-			if (!current_folder) {
-				window.location.href = window.location.href+"-/"+$(this).html()+'/';
-			} else {
-				window.location.href = window.location.href+$(this).html()+'/';
-			}
-		});
+	$('.type-dir').on("dblclick", function() {
+		if (!current_folder) {
+			window.location.href = window.location.href+"-/"+$(this).html()+'/';
+		} else {
+			window.location.href = window.location.href+$(this).html()+'/';
+		}
+	});
 
 	$('#parent').click(function(){
 		window.location.href = window.location.href.replace(/[^/]+\/$/, ''); // magic
@@ -178,6 +155,18 @@ $(document).ready(function() {
 		$('#upload-files-hidden').val('');
 	});
 
+	$('#show-grid').click(function(){
+		$('#show-grid').hide();
+		$('#show-table').show();
+		fill_grid(files);
+	});
+
+	$('#show-table').click(function(){
+		$('#show-table').hide();
+		$('#show-grid').show();
+		fill_table(files);
+	});
+
 /*	$('#synch-drive').click(function(){
 		if (selected_entries.length!=1) return;
 		$.ajax({
@@ -189,6 +178,37 @@ $(document).ready(function() {
 			success: fill_info
 		});
 	});*/
+
+	function click_entry(event, element, selector) {
+		if (event.ctrlKey) {
+			element.toggleClass('checked-entry');
+			last_selected_index = element.index();
+		} else if (event.shiftKey && last_selected_index>-1) {
+			let indexes = [element.index(), last_selected_index];
+			indexes.sort(function(a, b){return a-b});
+			for (let i = indexes[0]; i <= indexes[1]; i++) {
+				$(selector).eq(i).addClass('checked-entry');
+			}
+			last_selected_index = -1;
+		} else {
+			$(selector).removeClass('checked-entry');
+			element.addClass('checked-entry');
+			last_selected_index = element.index();
+		}
+
+		selected_entries = [];
+		$('.checked-entry').each(function() {
+			selected_entries.push(current_folder+element.find(".entry-name").text());
+		});
+
+		let l = selected_entries.length
+		$('#copy').prop('disabled', !l);
+		$('#cut').prop('disabled', !l);
+		$('#delete').prop('disabled', !l);
+		$('#rename').prop('disabled', l!=1);
+		console.log(selected_entries);
+		fill_info(selected_entries);
+	}
 
 	function fill_info(selected_entries) {
 		if (selected_entries.length<1) { 
@@ -217,17 +237,38 @@ $(document).ready(function() {
 	}
 
 	function fill_table(entries) {
+		$("#table-container").show();
+		$("#grid-container").hide();
 		last_selected_index = -1;
 		files = entries;
 
 		let content = '';
 		entries.forEach(function(entry) {
-			content += '<tr>';
+			content += '<tr class="entry">';
 			content += '<td class="entry-name type-'+entry['type']+'">'+entry['name']+'</td>';
 			content += '<td>'+entry['size']+'</td>';
 			content += '<td>'+entry['last_mod']+'</td>';
 			content += '</tr>';
 		});
+
 		$('#table-files tbody').html(content);
+	}
+
+	function fill_grid(entries) {
+		$("#table-container").hide();
+		$("#grid-container").show();
+
+		last_selected_index = -1;
+		files = entries;
+
+		let content = '';
+		entries.forEach(function(entry) {
+			content += '<div class="entry grid-element type-'+entry['type']+'">';
+			content += '<div class="grid-pic">'+entry['type']+'</div>';
+			content += '<div class="grid-text entry-name">'+entry['name']+'</div>';
+			content += '</div>';
+		});
+
+		$('#grid-container').html(content);
 	}
 });
