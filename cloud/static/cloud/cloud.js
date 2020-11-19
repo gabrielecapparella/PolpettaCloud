@@ -1,12 +1,9 @@
-// document.onselectstart = function(e) {
-//     if (e.shiftKey) return false;
-// }
-
 $(document).ready(function() {
 	let current_folder = window.location.pathname.replace(/^(\/cloud\/)/, "").replace(/^(-\/)/, "");
 	let last_selected_index = -1;
 	let files = [];
 	let selected_entries = [];
+	let visualization_mode = null;
 
 	$('#parent').prop('disabled', !current_folder);
 	$('header').html('PolpettaCloud - /'+current_folder);
@@ -16,7 +13,8 @@ $(document).ready(function() {
 		url: "/cloud/get-folder",
 		data: { 'folder': current_folder },
 		success: function(data) {
-			fill_table(data);
+			set_visualization_mode("grid");
+			update_files(data);
 		}
 	});
 
@@ -32,7 +30,7 @@ $(document).ready(function() {
 		click_entry(event, $(this), '#grid-container>.grid-element');
 	});
 
-	$('.type-dir').on("dblclick", function() {
+	$('#main').on("dblclick", ".type-dir", function() {
 		if (!current_folder) {
 			window.location.href = window.location.href+"-/"+$(this).html()+'/';
 		} else {
@@ -53,7 +51,7 @@ $(document).ready(function() {
 				'folder': current_folder,
 				'to_delete': selected_entries
 			},
-			success: fill_table
+			success: update_files
 		});
 	});
 
@@ -70,7 +68,7 @@ $(document).ready(function() {
 					'old_path': selected_entries[0],
 					'new_path': current_folder+new_name
 				},
-				success: fill_table
+				success: update_files
 			});
 		}
 	});
@@ -85,7 +83,7 @@ $(document).ready(function() {
 					'folder': current_folder,
 					'name': name
 				},
-				success: fill_table
+				success: update_files
 			});
 		}
 	});
@@ -126,7 +124,7 @@ $(document).ready(function() {
 			data: {
 				'folder': current_folder
 			},
-			success: fill_table
+			success: update_files
 		});
 
 	});
@@ -150,21 +148,17 @@ $(document).ready(function() {
 			cache: false,
 			contentType: false,
 			processData: false,
-			success: fill_table
+			success: update_files
 		});
 		$('#upload-files-hidden').val('');
 	});
 
 	$('#show-grid').click(function(){
-		$('#show-grid').hide();
-		$('#show-table').show();
-		fill_grid(files);
+		set_visualization_mode("grid");
 	});
 
 	$('#show-table').click(function(){
-		$('#show-table').hide();
-		$('#show-grid').show();
-		fill_table(files);
+		set_visualization_mode("table");
 	});
 
 /*	$('#synch-drive').click(function(){
@@ -179,6 +173,29 @@ $(document).ready(function() {
 		});
 	});*/
 
+	function set_visualization_mode(mode) {
+		visualization_mode = mode;
+		if (mode==="table") {
+			$('#show-table').hide();
+			$('#table-container').show();
+			$('#show-grid').show();
+			$('#grid-container').hide();
+			fill_table();
+		} else {
+			$('#show-table').show();
+			$('#table-container').hide();
+			$('#show-grid').hide();
+			$('#grid-container').show();
+			fill_grid();
+		}
+	}
+
+	function update_files(new_files) {
+		files = new_files;
+		if (visualization_mode==="table") fill_table();
+		else fill_grid();
+	}
+
 	function click_entry(event, element, selector) {
 		if (event.ctrlKey) {
 			element.toggleClass('checked-entry');
@@ -191,14 +208,14 @@ $(document).ready(function() {
 			}
 			last_selected_index = -1;
 		} else {
-			$(selector).removeClass('checked-entry');
+			$("#main .checked-entry").removeClass('checked-entry');
 			element.addClass('checked-entry');
 			last_selected_index = element.index();
 		}
 
 		selected_entries = [];
 		$('.checked-entry').each(function() {
-			selected_entries.push(current_folder+element.find(".entry-name").text());
+			selected_entries.push(current_folder+$(this).find(".entry-name").text());
 		});
 
 		let l = selected_entries.length
@@ -236,14 +253,10 @@ $(document).ready(function() {
 		}
 	}
 
-	function fill_table(entries) {
-		$("#table-container").show();
-		$("#grid-container").hide();
+	function fill_table() {
 		last_selected_index = -1;
-		files = entries;
-
 		let content = '';
-		entries.forEach(function(entry) {
+		files.forEach(function(entry) {
 			content += '<tr class="entry">';
 			content += '<td class="entry-name type-'+entry['type']+'">'+entry['name']+'</td>';
 			content += '<td>'+entry['size']+'</td>';
@@ -254,21 +267,26 @@ $(document).ready(function() {
 		$('#table-files tbody').html(content);
 	}
 
-	function fill_grid(entries) {
-		$("#table-container").hide();
-		$("#grid-container").show();
-
+	function fill_grid() {
 		last_selected_index = -1;
-		files = entries;
-
 		let content = '';
-		entries.forEach(function(entry) {
-			content += '<div class="entry grid-element type-'+entry['type']+'">';
-			content += '<div class="grid-pic">'+entry['type']+'</div>';
-			content += '<div class="grid-text entry-name">'+entry['name']+'</div>';
+		let pic;
+		files.forEach(function(entry) {
+			content += '<div class="entry grid-element">';
+			if (entry['name'].endsWith(".jpg") || entry['name'].endsWith(".png")) {
+				pic = '<img src="/cloud/get-file/'+current_folder+entry['name']+'" class="grid-pic-horizontal">';
+			} else {
+				pic = entry['type'];
+			}
+			content += '<div class="grid-pic">'+pic+'</div>';
+			content += '<div class="grid-text entry-name type-'+entry['type']+'">'+entry['name']+'</div>';
 			content += '</div>';
 		});
-
 		$('#grid-container').html(content);
+		$('.grid-pic-horizontal').each(function () {
+			if ($(this).height()>$(this).width()) {
+				$(this).attr("class", "grid-pic-vertical");
+			}
+		});
 	}
 });

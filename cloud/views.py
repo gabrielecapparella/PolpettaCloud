@@ -261,7 +261,6 @@ def upload_folder(request):  # TODO
 @login_required
 def get_file(request, file_path):
 	# path: /username/path/to/file.txt
-	#print("quack")
 	if request.user.username == "test":
 		response = HttpResponse()
 		response['X-Accel-Redirect'] = '/files/' + file_path #request.path.replace("/cloud/get-file/", "")

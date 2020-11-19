@@ -11,67 +11,68 @@
 	</head>
 	<body>
 		<header>-</header>
-		<div id="menu" class="column">
-			<div>Hi, {{ user.get_username }}</div>
-				<input id="upload-files-hidden" type="file" name="files" multiple>
-				<input id="upload-folder-hidden" type="file" name="files" multiple>
-				<button id="upload-files" type="button">Upload Files</button>
-				<button id="upload-folder" type="button">Upload Folder</button>
-				<a href="/cloud/google-consent">
-					<button id="google-consent" type="button">Google Consent</button>
-				</a>				  			 
-		</div>
-		<div id="main" class="column">
-			<div id="buttons">
-				<button id="parent" type="button" disabled>Parent</button>
-				<button id="delete" type="button" disabled>Delete</button>
-				<button id="rename" type="button" disabled>Rename</button>
-				<button id="create-folder" type="button">Create Folder</button>
-				<button id="copy" type="button" disabled>Copy</button>
-				<button id="cut" type="button" disabled>Cut</button>
-				{% if 'clipboard' in request.session %}
-				<button id="paste" type="button">Paste</button>
-				{% else %}
-				<button id="paste" type="button" disabled>Paste</button>
-				{% endif %}
-				<button id="download" type="button" disabled>Download</button>
-                <button id="show-table" type="button" hidden>Table</button>
-                <button id="show-grid" type="button">Grid</button>
-			</div>
-			<div id="table-container">
-				<table id="table-files">
-					<thead>
-						<tr>
-							<th>Name</th>
-							<th>Size</th>
-							<th>Last Modification</th>
-						</tr>
-					</thead>
-					<tbody>
-					</tbody>
-				</table>
-			</div>
-            <div id="grid-container" hidden>
-
-			</div>
-		</div>
-		<div id="info" class="column">
-			<div id="info-name">-</div>
-			<div id="info-img">
-				<img src="">
-			</div>
-			<div id="info-size">
-				Size: -
-			</div>
-			<div id="info-notes" class="row">
-				<textarea></textarea>
-			</div>
-			<div id="info-synch">
-				<div class="row">
-					<div class="row-text">G Drive</div>
-					<button id="synch-drive" type="button">Synchronize</button>
-				</div>
-			</div>
-		</div>
+        <div id="main-container">
+            <div id="menu" class="column">
+                <div>Hi, {{ user.get_username }}</div>
+                    <input id="upload-files-hidden" type="file" name="files" multiple>
+                    <input id="upload-folder-hidden" type="file" name="files" multiple>
+                    <button id="upload-files" type="button">Upload Files</button>
+                    <button id="upload-folder" type="button">Upload Folder</button>
+                    <a href="/cloud/google-consent">
+                        <button id="google-consent" type="button">Google Consent</button>
+                    </a>
+            </div>
+            <div id="main" class="column">
+                <div id="buttons">
+                    <button id="parent" type="button" disabled>Parent</button>
+                    <button id="delete" type="button" disabled>Delete</button>
+                    <button id="rename" type="button" disabled>Rename</button>
+                    <button id="create-folder" type="button">Create Folder</button>
+                    <button id="copy" type="button" disabled>Copy</button>
+                    <button id="cut" type="button" disabled>Cut</button>
+                    {% if 'clipboard' in request.session %}
+                    <button id="paste" type="button">Paste</button>
+                    {% else %}
+                    <button id="paste" type="button" disabled>Paste</button>
+                    {% endif %}
+                    <button id="download" type="button" disabled>Download</button>
+                    <button id="show-table" type="button">Table</button>
+                    <button id="show-grid" type="button">Grid</button>
+                </div>
+                <div id="table-container">
+                    <table id="table-files">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Size</th>
+                                <th>Last Modification</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="grid-container">
+                </div>
+            </div>
+            <div id="info" class="column">
+                <div id="info-name">-</div>
+                <div id="info-img">
+                    <img src="">
+                </div>
+                <div id="info-size">
+                    Size: -
+                </div>
+                <div id="info-notes" class="row">
+                    <textarea></textarea>
+                </div>
+                <div id="info-synch">
+                    <div class="row">
+                        <div class="row-text">G Drive</div>
+                        <button id="synch-drive" type="button">Synchronize</button>
+                    </div>
+                </div>
+            </div>
+        </div>
 	</body>
 </html>
