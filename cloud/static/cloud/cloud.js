@@ -273,11 +273,7 @@ $(document).ready(function() {
 		let pic;
 		files.forEach(function(entry) {
 			content += '<div class="entry grid-element">';
-			if (entry['name'].endsWith(".jpg") || entry['name'].endsWith(".png")) {
-				pic = '<img src="/cloud/get-file/'+current_folder+entry['name']+'" class="grid-pic-horizontal">';
-			} else {
-				pic = entry['type'];
-			}
+			pic = '<img src="'+get_icon_url(entry['name'], entry['type'])+'" class="grid-pic-horizontal">';
 			content += '<div class="grid-pic">'+pic+'</div>';
 			content += '<div class="grid-text entry-name type-'+entry['type']+'">'+entry['name']+'</div>';
 			content += '</div>';
@@ -288,5 +284,19 @@ $(document).ready(function() {
 				$(this).attr("class", "grid-pic-vertical");
 			}
 		});
+	}
+
+	function get_icon_url(filename, filetype) {
+		if (filetype=="dir") {
+			return '/static/cloud/pics/folder.png';
+		} else if (filename.endsWith(".jpg") || filename.endsWith(".png")) {
+			return '/cloud/get-file/'+current_folder+filename;
+		} else if (filename.endsWith(".pdf")) {
+			return '/static/cloud/pics/pdf.png';
+		} else if (filename.endsWith(".txt")) {
+			return '/static/cloud/pics/txt.png';
+		} else {
+			return '/static/cloud/pics/file.png';
+		}
 	}
 });

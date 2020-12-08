@@ -8,9 +8,9 @@ class CustomUserAdmin(UserAdmin):
 	add_form = CustomUserCreationForm
 	form = CustomUserChangeForm
 	model = CloudUser
-	list_display = ['username', 'email', 'root_path', 'trash_path']
+	list_display = ['username', 'email', 'root_path', 'trash_path', 'pics_default']
 	fieldsets = (
-		(('User'), {'fields': ('username', 'email', 'root_path', 'trash_path')}),
+		(('User'), {'fields': ('username', 'email', 'root_path', 'trash_path', 'pics_default')}),
 	)
 
 

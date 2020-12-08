@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect
 from django.http import JsonResponse, HttpResponse
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
-from cloud.models import Google_Tokens, GDrive_Index
+from cloud.models import GoogleTokens
 import cloud.google_api as google_api
 import google_auth_oauthlib.flow
 import os
@@ -33,18 +33,17 @@ def login_user(request):
 @login_required
 def google_consent(request):
 	scopes = [
-		'https://www.googleapis.com/auth/photoslibrary',
-		'https://www.googleapis.com/auth/drive'
+		'https://www.googleapis.com/auth/photoslibrary.readonly'
 	]
 	flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
 		'client_secret.json',
 		scopes=scopes)
-	flow.redirect_uri = 'http://localhost:8000/cloud/oauth2callback'
+	flow.redirect_uri = 'http://localhost/cloud/oauth2callback'
 	authorization_url, state = flow.authorization_url(
 		access_type='offline',
 		include_granted_scopes='true')
 
-	user_tokens = Google_Tokens.objects.get_or_create(user=request.user)[0]
+	user_tokens = GoogleTokens.objects.get_or_create(user=request.user)[0]
 	user_tokens.g_token = flow.code_verifier
 	user_tokens.save()
 
@@ -52,12 +51,12 @@ def google_consent(request):
 
 
 def oauth2_callback(request):
-	user_tokens = Google_Tokens.objects.get(user=request.user)
+	user_tokens = GoogleTokens.objects.get(user=request.user)
 	flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
 		'client_secret.json',
 		scopes=None)
 	flow.code_verifier = user_tokens.g_token
-	flow.redirect_uri = 'http://localhost:8000/cloud/oauth2callback'
+	flow.redirect_uri = 'http://localhost/cloud/oauth2callback'
 	flow.fetch_token(code=request.GET['code'])
 
 	user_tokens.g_token = flow.credentials.token

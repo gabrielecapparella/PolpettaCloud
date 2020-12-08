@@ -1,8 +1,10 @@
-from os.path import basename, join, exists, isdir
-from os.path import split as os_split
-from os.path import getsize as os_getsize
-from os import scandir as os_scandir
-import json
+# from os.path import basename, join, exists, isdir
+# from os.path import split as os_split
+# from os.path import getsize as os_getsize
+# from os import scandir as os_scandir
+# import json
+
+from os.path import join
 
 import google.oauth2.credentials
 from google.auth.transport.requests import AuthorizedSession
@@ -10,28 +12,18 @@ from google.auth.transport.requests import AuthorizedSession
 from django.http import HttpResponse
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from cloud.models import GDrive_Index, Google_Tokens
+from cloud.models import GoogleTokens
 
 
 @login_required
 def test_endpoint(request):
-	# gdrive_synch_file_or_folder(request.user, "jd25yqv8xsf31.jpg")
-	# gdrive_upload_file(request.user, "jd25yqv8xsf31.jpg")
-	# print(gdrive_list(request.user))
-	# m = gdrive_move_file(
-	# 	request.user,
-	# 	"1TRBE7xEi6u62r0rGYNiEy8bBt2IBNrfc",
-	# 	"0AP2aWwcOz4g_Uk9PVA",
-	# 	"1t77pJgSUIWKwLftcy4F6Nm6apia-srkC"
-	# )
-	# print(m.json())
-	# print(gdrive_get_info(request.user, "0AP2aWwcOz4g_Uk9PVA","1TRBE7xEi6u62r0rGYNiEy8bBt2IBNrfc"))
-
+	photos = list_photos(request.user)
+	print(photos)
+	download_photos(request.user, photos)
 	return HttpResponse(status=204)
 
 
-def create_session(user):  # should I delete these after use?
-	tokens = Google_Tokens.objects.get(user=user)
+def create_session(tokens):  # should I delete these after use?
 	credentials = google.oauth2.credentials.Credentials(
 		token=tokens.g_token,
 		refresh_token=tokens.g_refresh_token,
@@ -41,7 +33,7 @@ def create_session(user):  # should I delete these after use?
 	)
 	return AuthorizedSession(credentials)
 
-
+"""
 # only creates entries in the DB
 def gdrive_synch_file_or_folder(user, relative_path):
 	full_path = join(user.root_path, relative_path)
@@ -204,7 +196,7 @@ def gdrive_get_parent_id(user, relative_path):
 	except GDrive_Index.DoesNotExist:
 		parent_id = None
 	return parent_id
-
+"""
 
 # def gdrive_get_info(user, file_id):
 # 	session = create_session(user)
@@ -232,38 +224,63 @@ def gdrive_get_parent_id(user, relative_path):
 
 
 def list_photos(user):
-	session = create_session(user)
+	tokens = GoogleTokens.objects.get(user=user)
+	tokens.last_pic = "gluglu" # REMOVE BEFORE FLIGHT
+	session = create_session(tokens)
 	url = 'https://photoslibrary.googleapis.com/v1/mediaItems'
 	params = {
-		"pageSize": 100,
+		"pageSize": 10,
 		"pageToken": ""
 	}
-	result = []
-	while True:
+
+	first_id = None
+	last_id = tokens.last_pic
+	to_download = []
+	quack = True
+
+	while quack:
 		page = session.get(url, params=params).json()
-		result += page['mediaItems']
-		if 'nextPageToken' in page:
-			params["pageToken"] = page["nextPageToken"]
-		else:
-			break
+		for photo in page['mediaItems']:
+			if not first_id: first_id = photo["id"]
+			if photo["id"] == last_id:
+				quack = False
+				break
+			to_download.append((photo["baseUrl"], photo["filename"]))
+		if 'nextPageToken' in page: params["pageToken"] = page["nextPageToken"]
+		else: break
+
+	if first_id:
+		tokens.last_pic = first_id
+		tokens.save()
+
 	session.close()
-	return result
+	return to_download
 
 
-def list_albums(user):
-	session = create_session(user)
-	url = 'https://photoslibrary.googleapis.com/v1/albums'
-	params = {
-		"pageSize": 50,
-		"pageToken": ""
-	}
-	result = []
-	while True:
-		page = session.get(url, params=params).json()
-		result += page['albums']
-		if 'nextPageToken' in page:
-			params["pageToken"] = page["nextPageToken"]
-		else:
-			break
-	session.close()
-	return result
+def download_photos(user, to_download: list):
+	tokens = GoogleTokens.objects.get(user=user)
+	session = create_session(tokens)
+	for photo_url, photo_name in to_download:
+		res = session.get(photo_url+"=d")
+		if res.status_code == 200:
+			dest = join(user.pics_default, photo_name)
+			with open(dest, 'wb') as f:
+				f.write(res.content)
+
+# def list_albums(user):
+# 	session = create_session(user)
+# 	url = 'https://photoslibrary.googleapis.com/v1/albums'
+# 	params = {
+# 		"pageSize": 50,
+# 		"pageToken": ""
+# 	}
+# 	result = []
+# 	while True:
+# 		page = session.get(url, params=params).json()
+# 		result += page['albums']
+# 		if 'nextPageToken' in page:
+# 			params["pageToken"] = page["nextPageToken"]
+# 		else:
+# 			break
+# 	session.close()
+# 	return result
