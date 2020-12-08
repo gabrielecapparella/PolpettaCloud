@@ -6,7 +6,7 @@ $(document).ready(function() {
 	let visualization_mode = null;
 
 	$('#parent').prop('disabled', !current_folder);
-	$('header').html('PolpettaCloud - /'+current_folder);
+	$('#nav-path').html('/'+current_folder);
 
 	$.ajax({
 		type: "POST",
@@ -15,6 +15,7 @@ $(document).ready(function() {
 		success: function(data) {
 			set_visualization_mode("grid");
 			update_files(data);
+			fill_info([]);
 		}
 	});
 
@@ -202,42 +203,50 @@ $(document).ready(function() {
 		}
 
 		selected_entries = [];
+		let selected_indexes = [];
 		$('.checked-entry').each(function() {
 			selected_entries.push(current_folder+$(this).find(".entry-name").text());
+			selected_indexes.push($(this).index());
 		});
 
-		let l = selected_entries.length
+		let l = selected_entries.length;
 		$('#copy').prop('disabled', !l);
 		$('#cut').prop('disabled', !l);
 		$('#delete').prop('disabled', !l);
 		$('#rename').prop('disabled', l!=1);
-		console.log(selected_entries);
-		fill_info(selected_entries);
+
+		fill_info(selected_indexes);
 	}
 
-	function fill_info(selected_entries) {
-		if (selected_entries.length<1) { 
-			// TODO: main folder
-		} else if (selected_entries.length==1) {
-			sel = files[last_selected_index];
-			$('#info-name').html(sel['name']);
-			$('#info-size').html(sel['size']);
-			$.ajax({
-				url: '/cloud/get-info',
-				type: 'POST',
-				data: {
-					'path': current_folder+sel['name']
-				},
-				success: function(data) {
-					if(data['gdrive_sync']){
-						$('#synch-drive').html("Unsynchronize");
-					} else {
-						$('#synch-drive').html("Synchronize");
-					}					
-				}
+	function fill_info(selected_indexes) {
+		let name, img;
+		let size = 0;
+		if (selected_indexes.length<1) {
+			name = current_folder || "/";
+			img = "/static/cloud/pics/folder.png";
+			files.forEach(function(entry) {
+				size += entry["raw_size"];
 			});
+			size = readable_size(size);
+		} else if (selected_indexes.length==1) {
+			let sel = files[selected_indexes[0]];
+			name = sel['name'];
+			img = get_icon_url(sel["name"], sel["type"]);
+			size = sel["size"];
 		} else {
-			// TODO: multiple files
+			name = "Multiple files";
+			img = "/static/cloud/pics/files.png";
+			selected_indexes.forEach(function(i) {
+				size +=files[i]["raw_size"];
+			});
+			size = readable_size(size);
+		}
+		$('#info-name').text(name);
+		$('#info-img').html('<img src="'+img+'" class="grid-pic-horizontal">');
+		$('#info-size').text("Size: "+size);
+		let img_el = $('#info-img > img').first();
+		if (img_el.height()<img_el.width()) {
+			img_el.attr("class", "grid-pic-vertical");
 		}
 	}
 
@@ -267,7 +276,7 @@ $(document).ready(function() {
 			content += '</div>';
 		});
 		$('#grid-container').html(content);
-		$('.grid-pic-horizontal').each(function () {
+		$('.grid-pic > .grid-pic-horizontal').each(function () {
 			if ($(this).height()>$(this).width()) {
 				$(this).attr("class", "grid-pic-vertical");
 			}
@@ -286,5 +295,15 @@ $(document).ready(function() {
 		} else {
 			return '/static/cloud/pics/file.png';
 		}
+	}
+
+	function readable_size(raw_size) {
+		let unit = ["B", "KB", "MB", "GB", "TB"];
+		let i = 0;
+		while ((raw_size/1000)>=1) {
+			i++;
+			raw_size /= 1000;
+		}
+		return raw_size.toFixed(2)+unit[i];
 	}
 });

@@ -6,16 +6,23 @@
 		
 		<link rel="stylesheet" href="{% static "cloud/style.css" %}">
 		<script type = "text/javascript" src = "{% static "cloud/jquery-3.2.1.min.js" %}"></script>
-{#		<script type = "text/javascript"> var current_folder = '{{folder}}';</script>#}
 		<script type = "text/javascript" src = "{% static "cloud/cloud.js" %}"></script>
+        <link rel = "icon" type = "image/png" href = "{% static "cloud/pics/spaghetti.png" %}">
 	</head>
 	<body>
-		<header>-</header>
+        <div id="navbar" class="row">
+            <div id="nav-logo">
+                <img src="/static/cloud/pics/spaghetti_big.png"> PolpettaCloud
+            </div>
+            <div id="nav-path" class="row"></div>
+            <div id="nav-user" class="row">
+                <div id="user-avatar"><img src="/static/cloud/pics/lion.png"></div>
+                <div id="user-name">{{ user.get_username }}</div>
+                <div id="logout"><img src="/static/cloud/pics/logout.png"></div>
+            </div>
+        </div>
         <div id="main-container">
             <div id="side-column" class="column">
-                <div id="side-user-thing" class="border">
-                    Hi, {{ user.get_username }} <button id="logout" type="button">Logout</button>
-                </div>
                 <div class="border">
                     <input id="upload-files-hidden" type="file" name="files" multiple>
                     <input id="upload-folder-hidden" type="file" name="files" multiple>

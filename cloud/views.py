@@ -167,9 +167,6 @@ def create_folder(request):
 		full_path = os.path.join(folder, request.POST['name'])
 		os.makedirs(full_path)
 
-		#google_api.gdrive_check_if_has_to_be_synched(request.user,
-		#											 os.path.join(request.POST['folder'], request.POST['name']))
-
 		files = scan_folder(folder)
 		return JsonResponse(files, safe=False)
 
@@ -245,8 +242,6 @@ def upload_files(request):
 		with open(full_path, 'wb+') as f:
 			for chunk in uploaded_file.chunks():
 				f.write(chunk)
-#		google_api.gdrive_check_if_has_to_be_synched(request.user,
-#													 os.path.join(request.POST['folder'], uploaded_file.name))
 
 	files = scan_folder(folder)
 	return JsonResponse(files, safe=False)
@@ -268,20 +263,15 @@ def get_file(request, file_path):
 		return HttpResponse(status=403)
 
 
-# @login_required
-# def google_drive_synch(request):
-# 	rel_path = os.path.join(request.POST['path'])
-# 	google_api.gdrive_synch_file_or_folder(request.user, rel_path)
-# 	return HttpResponse(status=204)
-
-
 def scan_folder(path):
 	files = []
 	for entry in os.scandir(path):
+		file_size = get_size(entry)
 		files.append({
 			'type': 'dir' if entry.is_dir() else 'file',
 			'name': entry.name,
-			'size': readable_size(get_size(entry)),
+			'size': readable_size(file_size),
+			'raw_size': file_size,
 			'last_mod': get_last_mod(entry)
 		})
 	return files

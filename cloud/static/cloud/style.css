@@ -3,6 +3,7 @@ body {
 	flex-direction: row;
 	flex-wrap: wrap;
 	justify-content: center;
+	margin: 0;
 }
 
 header {
@@ -47,10 +48,6 @@ header {
 	border-width: 1px;
 }
 
-#main {
-
-}
-
 #main-container {
 	display: flex;
 	flex-wrap: nowrap;
@@ -73,12 +70,64 @@ header {
 	margin-bottom: 10px;
 }
 
+/*NAVBAR*/
+
+#navbar {
+	width: 100%;
+	height: 50px;
+	margin: 0;
+	box-sizing: border-box;
+	border-bottom: 1px solid black;
+}
+
+#nav-logo {
+	width: 150px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+#nav-logo > img {
+	height: 100%;
+	width: auto;
+}
+
+#nav-path {
+	width: 100%;
+	padding: 0 20px;
+}
+
+#nav-user {
+	margin: 3px;
+	display: flex;
+}
+
+#nav-user > div {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin: 0 10px;
+}
+
+#user-avatar > img {
+	height: 35px;
+	width: 35px;
+	border: 1px solid black;
+	border-radius: 3px;
+}
+
+#logout > img {
+	height: 20px;
+	width: auto;
+}
+
 
 /*INFO*/
 
 #info {
 	padding: 0;
 	margin: 0;
+
 }
 
 #info-size {
@@ -86,21 +135,24 @@ header {
 }
 
 #info-name {
-	width: 100%;
-	margin: 10px auto;
+	width: 240px;
+	margin: 5px auto;
 	font-weight: bold;
-	font-size: 20px;
+	font-size: 16px;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	overflow: hidden;
+	text-align: center;
 }
 
 #info-img {
-	height: 150px;
-	width: 150px;
-	border-style: solid;
-	border-width: 1px;
+	height: 200px;
+	width: 200px;
 	margin: 10px auto;
+	overflow: hidden;
+	align-items: center;
+	justify-content: center;
+	display: flex;
 }
 
 
@@ -120,8 +172,6 @@ header {
 	width: 120px;
 	height: 120px;
 	margin: 5px;
-	/*border-style: solid;*/
-	/*border-width: 1px;*/
 	overflow: hidden;
 	align-items: center;
 	justify-content: center;
