@@ -12,8 +12,11 @@
 	<body>
 		<header>-</header>
         <div id="main-container">
-            <div id="menu" class="column">
-                <div>Hi, {{ user.get_username }}</div>
+            <div id="side-column" class="column">
+                <div id="side-user-thing" class="border">
+                    Hi, {{ user.get_username }} <button id="logout" type="button">Logout</button>
+                </div>
+                <div class="border">
                     <input id="upload-files-hidden" type="file" name="files" multiple>
                     <input id="upload-folder-hidden" type="file" name="files" multiple>
                     <button id="upload-files" type="button">Upload Files</button>
@@ -21,8 +24,21 @@
                     <a href="/cloud/google-consent">
                         <button id="google-consent" type="button">Google Consent</button>
                     </a>
+                </div>
+                <div id="info" class="column border">
+                    <div id="info-name">-</div>
+                    <div id="info-img">
+                        <img src="">
+                    </div>
+                    <div id="info-size">
+                        Size: <p>-</p>
+                    </div>
+                </div>
+                <div id="info-sync" class="border">
+                        sync
+                </div>
             </div>
-            <div id="main" class="column">
+            <div id="main" class="column border">
                 <div id="buttons">
                     <button id="parent" type="button" disabled>Parent</button>
                     <button id="delete" type="button" disabled>Delete</button>
@@ -43,9 +59,7 @@
                     <table id="table-files">
                         <thead>
                             <tr>
-                                <th>Name</th>
-                                <th>Size</th>
-                                <th>Last Modification</th>
+                                <th>Name</th><th>Size</th><th>Last Modification</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -53,24 +67,6 @@
                     </table>
                 </div>
                 <div id="grid-container">
-                </div>
-            </div>
-            <div id="info" class="column">
-                <div id="info-name">-</div>
-                <div id="info-img">
-                    <img src="">
-                </div>
-                <div id="info-size">
-                    Size: -
-                </div>
-                <div id="info-notes" class="row">
-                    <textarea></textarea>
-                </div>
-                <div id="info-synch">
-                    <div class="row">
-                        <div class="row-text">G Drive</div>
-                        <button id="synch-drive" type="button">Synchronize</button>
-                    </div>
                 </div>
             </div>
         </div>

@@ -161,18 +161,6 @@ $(document).ready(function() {
 		set_visualization_mode("table");
 	});
 
-/*	$('#synch-drive').click(function(){
-		if (selected_entries.length!=1) return;
-		$.ajax({
-			url: '/cloud/synch-gdrive',
-			type: 'POST',
-			data: {
-				'path': current_folder+selected_entries[0]
-			},
-			success: fill_info
-		});
-	});*/
-
 	function set_visualization_mode(mode) {
 		visualization_mode = mode;
 		if (mode==="table") {
