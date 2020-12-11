@@ -8,13 +8,13 @@ app_name = 'cloud'
 #path('', views.index),
 urlpatterns = [
 	path('', views.index, name='cloud_index'),
+	path('-/<path:folder>', views.index),
+	path('-/', RedirectView.as_view(url='/cloud')),
 	path('login-action/', views.login_action),
 	path('login/', views.login_user),
 
 	path('google-consent', views.google_consent),
 	path('oauth2callback', views.oauth2_callback),
-	path('-/<path:folder>/', views.index),
-	path('-/', RedirectView.as_view(url='/cloud')),
 	path('get-folder', views.get_folder),
 	path('delete', views.delete),
 	path('rename', views.rename),

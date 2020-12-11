@@ -95,6 +95,20 @@ header {
 #nav-path {
 	width: 100%;
 	padding: 0 20px;
+	display: flex;
+	flex-direction: row;
+	justify-content: flex-start;
+	align-content: center;
+	margin: 10px;
+}
+
+.nav-path-button {
+	border: 1px solid black;
+	border-radius: 2px;
+	margin-right: 10px;
+	padding: 0 10px;
+	align-items: center;
+	display: flex;
 }
 
 #nav-user {

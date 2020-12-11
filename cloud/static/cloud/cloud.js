@@ -1,12 +1,12 @@
 $(document).ready(function() {
-	let current_folder = window.location.pathname.replace(/^(\/cloud\/)/, "").replace(/^(-\/)/, "");
+	let current_folder = window.location.pathname
+		.replace(/^(\/cloud\/)/, "").replace(/^(-)/, "").replace(/\/$/, "");
 	let last_selected_index = -1;
 	let files = [];
 	let selected_entries = [];
 	let visualization_mode = null;
 
 	$('#parent').prop('disabled', !current_folder);
-	$('#nav-path').html('/'+current_folder);
 
 	$.ajax({
 		type: "POST",
@@ -16,8 +16,10 @@ $(document).ready(function() {
 			set_visualization_mode("grid");
 			update_files(data);
 			fill_info([]);
+			build_path_bar();
 		}
 	});
+
 
 	$('#table-container, #grid-container').on("mousedown", function(e) {
 		if (e.shiftKey) e.preventDefault();
@@ -33,14 +35,14 @@ $(document).ready(function() {
 
 	$('#main').on("dblclick", ".type-dir", function() {
 		if (!current_folder) {
-			window.location.href = window.location.href+"-/"+$(this).html()+'/';
+			window.location.href = window.location.origin+"/cloud/-/"+$(this).html();
 		} else {
-			window.location.href = window.location.href+$(this).html()+'/';
+			window.location.href = window.location.origin+"/cloud/-"+current_folder+"/"+$(this).html();
 		}
 	});
 
 	$('#parent').click(function(){
-		window.location.href = window.location.href.replace(/[^/]+\/$/, ''); // magic
+		window.location.href = window.location.href.replace(/\/[^/]+$/, ''); // magic
 	});
 
 	$('#delete').click(function(){
@@ -161,6 +163,19 @@ $(document).ready(function() {
 	$('#show-table').click(function(){
 		set_visualization_mode("table");
 	});
+
+	function build_path_bar() {
+		let nav_path = $("#nav-path");
+		let cur_path = "";
+		nav_path.html("");
+		current_folder.split("/").forEach(function(folder) {
+			cur_path += folder+"/";
+			nav_path.append($("<div class='nav-path-button' data-path='"+cur_path+"'>").text(folder+"/"));
+		});
+		$(".nav-path-button").click(function(){
+			window.location.href = window.location.origin + "/cloud/-" + $(this).attr("data-path");
+		});
+	}
 
 	function set_visualization_mode(mode) {
 		visualization_mode = mode;

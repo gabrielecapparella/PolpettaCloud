@@ -1,3 +1,5 @@
+import re
+
 from django.shortcuts import render, redirect
 from django.http import JsonResponse, HttpResponse
 from django.contrib.auth import authenticate, login
@@ -88,7 +90,8 @@ def get_info(request):  # TODO
 def get_folder(request):
 	root = request.user.root_path
 	try:
-		folder = os.path.join(root, request.POST['folder'])
+		folder = re.sub("^\/", "", request.POST['folder'])
+		folder = os.path.join(root, folder)
 	except KeyError:
 		return HttpResponse(status=400)
 
