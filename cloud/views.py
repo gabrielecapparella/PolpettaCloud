@@ -2,20 +2,21 @@ import re
 
 from django.shortcuts import render, redirect
 from django.http import JsonResponse, HttpResponse
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from cloud.models import GoogleTokens
-import cloud.google_api as google_api
-import google_auth_oauthlib.flow
+from django.conf import settings
 import os
 from datetime import datetime
 from shutil import copy as sh_copy
 
+from cloud.models import GooglePhotosSync
+
+CLOUD_ROOT = settings.CLOUD_ROOT
+
 
 @login_required
 def index(request, folder=''):
-	print(folder)
-	return render(request, 'cloud/index.html', {'folder': folder})
+	return render(request, 'cloud/index.html')
 
 
 def login_action(request):
@@ -32,74 +33,24 @@ def login_user(request):
 	return render(request, 'cloud/login.html')
 
 
-@login_required
-def google_consent(request):
-	scopes = [
-		'https://www.googleapis.com/auth/photoslibrary.readonly'
-	]
-	flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-		'client_secret.json',
-		scopes=scopes)
-	flow.redirect_uri = 'http://localhost/cloud/oauth2callback'
-	authorization_url, state = flow.authorization_url(
-		access_type='offline',
-		include_granted_scopes='true')
-
-	user_tokens = GoogleTokens.objects.get_or_create(user=request.user)[0]
-	user_tokens.g_token = flow.code_verifier
-	user_tokens.save()
-
-	return redirect(authorization_url)
-
-
-def oauth2_callback(request):
-	user_tokens = GoogleTokens.objects.get(user=request.user)
-	flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-		'client_secret.json',
-		scopes=None)
-	flow.code_verifier = user_tokens.g_token
-	flow.redirect_uri = 'http://localhost/cloud/oauth2callback'
-	flow.fetch_token(code=request.GET['code'])
-
-	user_tokens.g_token = flow.credentials.token
-	user_tokens.g_refresh_token = flow.credentials.refresh_token
-	user_tokens.save()
-
-	return redirect('/cloud')
+def logout_action(request):
+	logout(request)
+	return redirect('/cloud/login/')
 
 
 @login_required
-def get_info(request):  # TODO
-	# as of now it only returns info about sync
-
-	# root = request.user.root_path
-	try:
-		path = request.POST['path']
-	except KeyError:
-		return HttpResponse(status=400)
-	info = {}
-	# q = GDrive_Index.objects.filter(user=request.user, path=path).exists()
-	# if q:
-	# 	info = {"gdrive_sync": True}
-	# else:
-	# 	info = {"gdrive_sync": False}
-
-	return JsonResponse(info, safe=False)
-
-
 def get_folder(request):
-	root = request.user.root_path
+	user_root = get_user_root(request.user)
 	try:
-		folder = re.sub("^\/", "", request.POST['folder'])
-		folder = os.path.join(root, folder)
-	except KeyError:
+		folder = user_root + request.POST['folder']
+	except KeyError as e:
+		print(e)
 		return HttpResponse(status=400)
 
 	try:
 		files = scan_folder(folder)
 	except OSError as e:
 		print(e)
-		print(os.getcwd())
 		return HttpResponse(status=422)
 
 	return JsonResponse(files, safe=False)
@@ -107,27 +58,22 @@ def get_folder(request):
 
 @login_required
 def delete(request):  # what if it has to delete a folder, like pics_default?
+	user_root = get_user_root(request.user)
 	try:
-		folder = os.path.join(request.user.root_path, request.POST['folder'])
+		folder = user_root + request.POST['folder']
 		for path in request.POST.getlist('to_delete[]'):  # path is relative to user root
-			old = os.path.join(request.user.root_path, path)
-			new = os.path.join(request.user.trash_path, os.path.basename(path))
+			old = user_root + path
+			new = os.path.join(get_user_trash(request.user), os.path.basename(path))
 			while os.path.exists(new): new += '.copy'
 			os.rename(old, new)
-
-			# try:
-			# 	entry = GDrive_Index.objects.get(user=request.user, path=path)
-			# 	entry.is_dirty = True
-			# 	entry.save()
-			# except GDrive_Index.DoesNotExist:
-			# 	pass
 
 		# TODO: manage trash		
 
 		files = scan_folder(folder)
 		return JsonResponse(files, safe=False)
 
-	except KeyError:
+	except KeyError as e:
+		print(e)
 		return HttpResponse(status=400)
 
 	except OSError as e:
@@ -137,56 +83,55 @@ def delete(request):  # what if it has to delete a folder, like pics_default?
 
 @login_required
 def rename(request):
+	user_root = get_user_root(request.user)
 	try:
-		folder = os.path.join(request.user.root_path, request.POST['folder'])
-		old = os.path.join(request.user.root_path, request.POST['old_path'])
-		new = os.path.join(request.user.root_path, request.POST['new_path'])
+		folder = user_root + request.POST['folder']
+		old = user_root + request.POST['old_path']
+		new = user_root + request.POST['new_path']
 		while os.path.exists(new): new += '.copy'
 		os.rename(old, new)
-
-		# try:
-		# 	entry = GDrive_Index.objects.get(user=request.user,
-		# 									 path=request.POST['old_path'])
-		# 	entry.is_dirty = True
-		# 	entry.path = request.POST['new_path']
-		# 	entry.save()
-		# except GDrive_Index.DoesNotExist:
-		# 	pass
 
 		files = scan_folder(folder)
 		return JsonResponse(files, safe=False)
 
-	except OSError:
+	except OSError as e:
+		print(e)
 		return HttpResponse(status=422)
 
-	except KeyError:
+	except KeyError as e:
+		print(e)
 		return HttpResponse(status=400)
 
 
 @login_required
 def create_folder(request):
+	user_root = get_user_root(request.user)
 	try:
-		folder = os.path.join(request.user.root_path, request.POST['folder'])
+		folder = user_root + request.POST['folder']
 		full_path = os.path.join(folder, request.POST['name'])
 		os.makedirs(full_path)
 
 		files = scan_folder(folder)
 		return JsonResponse(files, safe=False)
 
-	except OSError:
+	except OSError as e:
+		print(e)
 		return HttpResponse(status=422)
 
-	except KeyError:
+	except KeyError as e:
+		print(e)
 		return HttpResponse(status=400)
 
 
 @login_required
 def copy(request):
+	user_root = get_user_root(request.user)
 	try:
 		paths = []
 		for path in request.POST.getlist('to_copy[]'):
-			paths.append(os.path.join(request.user.root_path, path))
-	except KeyError:
+			paths.append(user_root + path)
+	except KeyError as e:
+		print(e)
 		return HttpResponse(status=400)
 	request.session['clipboard'] = paths
 	request.session['clipboard_mode'] = 'copy'
@@ -195,11 +140,13 @@ def copy(request):
 
 @login_required
 def cut(request):
+	user_root = get_user_root(request.user)
 	try:
 		paths = []
 		for path in request.POST.getlist('to_cut[]'):
-			paths.append(os.path.join(request.user.root_path, path))
-	except KeyError:
+			paths.append(user_root + path)
+	except KeyError as e:
+		print(e)
 		return HttpResponse(status=400)
 	request.session['clipboard'] = paths
 	request.session['clipboard_mode'] = 'cut'
@@ -208,28 +155,23 @@ def cut(request):
 
 @login_required
 def paste(request):
+	user_root = get_user_root(request.user)
 	try:
-		destination = os.path.join(request.user.root_path, request.POST['folder'])
+		destination = user_root + request.POST['folder']
 		mode = request.session['clipboard_mode']
 		for path in request.session['clipboard']:
 			new_path = os.path.join(destination, os.path.basename(path))
 			while os.path.exists(new_path): new_path += '.copy'
 			if mode == 'cut':
 				os.rename(path, new_path)
-				# try:
-				# 	entry = GDrive_Index.objects.get(user=request.user, path=path)
-				# 	entry.is_dirty = True
-				# 	entry.path = new_path
-				# 	entry.save()
-				# except GDrive_Index.DoesNotExist:
-				# 	pass
 			elif mode == 'copy':
 				sh_copy(path, new_path)
 		if mode == 'cut': del request.session['clipboard']
 		files = scan_folder(destination)
 		return JsonResponse(files, safe=False)
 
-	except KeyError:
+	except KeyError as e:
+		print(e)
 		return HttpResponse(status=400)
 
 	except OSError as e:
@@ -239,7 +181,8 @@ def paste(request):
 
 @login_required
 def upload_files(request):
-	folder = os.path.join(request.user.root_path, request.POST['folder'])
+	user_root = get_user_root(request.user)
+	folder = user_root + request.POST['folder']
 	for uploaded_file in request.FILES.getlist('files[]'):
 		full_path = os.path.join(folder, uploaded_file.name)
 		with open(full_path, 'wb+') as f:
@@ -257,13 +200,16 @@ def upload_folder(request):  # TODO
 
 @login_required
 def get_file(request, file_path):
-	# path: /username/path/to/file.txt
-	if request.user.username == "test":
-		response = HttpResponse()
-		response['X-Accel-Redirect'] = '/files/' + file_path #request.path.replace("/cloud/get-file/", "")
-		return response
-	else:
-		return HttpResponse(status=403)
+	response = HttpResponse()
+	response['X-Accel-Redirect'] = '/files/'+str(request.user.id)+"/files/"+file_path
+	return response
+
+
+@login_required
+def get_avatar(request):
+	response = HttpResponse()
+	response['X-Accel-Redirect'] = '/files/'+str(request.user.id)+"/avatar.png"
+	return response
 
 
 def scan_folder(path):
@@ -302,3 +248,11 @@ def readable_size(size):
 def get_last_mod(entry):
 	timestamp = os.stat(entry.path).st_mtime
 	return datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M')
+
+
+def get_user_root(user):
+	return os.path.join(CLOUD_ROOT, str(user.id)+"/files")
+
+
+def get_user_trash(user):
+	return os.path.join(CLOUD_ROOT, str(user.id)+"/trash")

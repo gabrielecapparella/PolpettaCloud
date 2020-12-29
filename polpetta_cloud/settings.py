@@ -129,6 +129,8 @@ AUTH_USER_MODEL = 'cloud.CloudUser'
 
 SESSION_COOKIE_SECURE=False
 
+CLOUD_ROOT = "cloud/cloud_root/"
+
 # client_id, client_secret, project_id, auth_uri, token_uri, ...
 with open("client_secret.json", 'r') as f:
 	data = json.load(f)["web"]

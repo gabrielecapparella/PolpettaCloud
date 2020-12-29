@@ -12,55 +12,69 @@
 	<body>
         <div id="navbar" class="row">
             <div id="nav-logo">
-                <img src="/static/cloud/pics/spaghetti_big.png"> PolpettaCloud
+                <img src="/static/cloud/pics/spaghetti_big.png">&nbsp PolpettaCloud
             </div>
             <div id="nav-path"></div>
             <div id="nav-user" class="row">
-                <div id="user-avatar"><img src="/static/cloud/pics/lion.png"></div>
+                <div id="user-avatar"><img src="/cloud/get-avatar"></div>
                 <div id="user-name">{{ user.get_username }}</div>
-                <div id="logout"><img src="/static/cloud/pics/logout.png"></div>
+                <div id="logout">
+                    <a href="/cloud/logout/"><img src="/static/cloud/pics/logout.png"></a>
+                </div>
             </div>
         </div>
         <div id="main-container">
             <div id="side-column" class="column">
-                <div class="border">
-                    <input id="upload-files-hidden" type="file" name="files" multiple>
-                    <input id="upload-folder-hidden" type="file" name="files" multiple>
-                    <button id="upload-files" type="button">Upload Files</button>
-                    <button id="upload-folder" type="button">Upload Folder</button>
-                    <a href="/cloud/google-consent">
-                        <button id="google-consent" type="button">Google Consent</button>
-                    </a>
-                </div>
-                <div id="info" class="column border">
+                <div id="info" class="column tile">
                     <div id="info-name">-</div>
                     <div id="info-img">
                         <img src="">
                     </div>
-                    <div id="info-size">
-                        Size: <p>-</p>
+                    <div id="info-size">Size: <span>-</span></div>
+                </div>
+                <div id="gp-sync" class="column tile">
+                    <div id="sync-title">
+                        <a href="/cloud/google-consent"><img src="/static/cloud/pics/google-photos.png"></a>
+                        Google Photos
+                    </div>
+                    <div id="sync-last">
+                        Last sync:&nbsp;
+                        <span id="sync-last-time">-</span>
+                        <img id="sync-now" src="/static/cloud/pics/refresh.png">
+                    </div>
+                    <div id="sync-status">
+                        <p id="sync-unsucc" class="red">
+                            <a href="/cloud/google-consent">Last sync was unsuccessful.<br>Click here to regenerate consent</a>
+                        </p>
+                        <p id="sync-no-consent" class="red">
+                            <a href="/cloud/google-consent">No account linked.<br>Click here to link one</a>
+                        </p>
+                        <p id="sync-ok" class="green">
+                            Fetched <span>-</span> new photos.
+                        </p>
                     </div>
                 </div>
-                <div id="info-sync" class="border">
-                        sync
-                </div>
             </div>
-            <div id="main" class="column border">
+            <div id="main" class="column tile">
                 <div id="buttons">
-                    <button id="parent" type="button" disabled>Parent</button>
-                    <button id="delete" type="button" disabled>Delete</button>
-                    <button id="rename" type="button" disabled>Rename</button>
-                    <button id="create-folder" type="button">Create Folder</button>
-                    <button id="copy" type="button" disabled>Copy</button>
-                    <button id="cut" type="button" disabled>Cut</button>
+                    <div id="parent" class="button">Parent</div>
+                    <div id="delete" class="button">Delete</div>
+                    <div id="rename" class="button">Rename</div>
+                    <div id="create-folder" class="button">Create Folder</div>
+                    <div id="copy" class="button">Copy</div>
+                    <div id="cut" class="button">Cut</div>
                     {% if 'clipboard' in request.session %}
-                    <button id="paste" type="button">Paste</button>
+                    <div id="paste" class="button">Paste</div>
                     {% else %}
-                    <button id="paste" type="button" disabled>Paste</button>
+                    <div id="paste" class="button">Paste</div>
                     {% endif %}
-                    <button id="download" type="button" disabled>Download</button>
-                    <button id="show-table" type="button">Table</button>
-                    <button id="show-grid" type="button">Grid</button>
+                    <div id="download" class="button">Download</div>
+                    <div id="show-table" class="button">Table</div>
+                    <div id="show-grid" class="button">Grid</div>
+                    <input id="upload-files-hidden" type="file" name="files" multiple>
+                    <input id="upload-folder-hidden" type="file" name="files" multiple>
+                    <div id="upload-files" class="button">Upload Files</div>
+                    <div id="upload-folder" class="button">Upload Folder</div>
                 </div>
                 <div id="table-container">
                     <table id="table-files">

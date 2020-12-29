@@ -1,232 +1,79 @@
-# from os.path import basename, join, exists, isdir
-# from os.path import split as os_split
-# from os.path import getsize as os_getsize
-# from os import scandir as os_scandir
-# import json
-
 from os.path import join
+from datetime import datetime
 
 import google.oauth2.credentials
+import google_auth_oauthlib.flow
 from google.auth.transport.requests import AuthorizedSession
 
-from django.http import HttpResponse
+from django.shortcuts import redirect
+from django.http import HttpResponse, JsonResponse
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from cloud.models import GoogleTokens
+from django.utils import timezone
+from cloud.models import GooglePhotosSync
+from cloud.views import get_user_root
 
 
 @login_required
 def test_endpoint(request):
-	photos = list_photos(request.user)
-	print(photos)
-	download_photos(request.user, photos)
+	GooglePhotosSync.objects.all().delete()
+	#fetch_new_photos(request.user)
 	return HttpResponse(status=204)
 
 
-def create_session(tokens):  # should I delete these after use?
+def create_session(g_token, g_refresh_token):
 	credentials = google.oauth2.credentials.Credentials(
-		token=tokens.g_token,
-		refresh_token=tokens.g_refresh_token,
+		token=g_token,
+		refresh_token=g_refresh_token,
 		client_id=settings.CLIENT_ID,
 		client_secret=settings.CLIENT_SECRET,
 		token_uri=settings.TOKEN_URI
 	)
 	return AuthorizedSession(credentials)
 
-"""
-# only creates entries in the DB
-def gdrive_synch_file_or_folder(user, relative_path):
-	full_path = join(user.root_path, relative_path)
-	relative_path = relative_path.rstrip('/')
-	parent_id = gdrive_get_parent_id(user, relative_path)
 
-	if not GDrive_Index.objects.filter(user=user, path=relative_path).exists():
-		new_entry = GDrive_Index(
-			user=user,
-			gdrive_id="",
-			parent_gdrive_id=parent_id,
-			path=relative_path,
-			is_dirty=True,
-			is_dir=isdir(full_path)
-		)
-		new_entry.save()
-
-	if isdir(full_path):
-		for entry in os_scandir(full_path):
-			entry_rel_path = join(relative_path, entry.name)
-			gdrive_synch_file_or_folder(user, entry_rel_path)
-
-
-# checks if a file that is about to be created has to be synched as well
-# a new file has to be synched if is inside a synched folder
-def gdrive_check_if_has_to_be_synched(user, relative_path):
-	possible_parent_id = gdrive_get_parent_id(user, relative_path)
-	if not possible_parent_id == None:
-		gdrive_synch_file_or_folder(user, relative_path)
-
-
-def gdrive_check_dirty(user):
-	dirty_entries = list(GDrive_Index.objects.filter(user=user, is_dirty=True))
-
-	# TODO
-	# remote_changes = gdrive_changes_list(user)
-	# for entry in remote_changes:
-	# 	# move, delete, rename, create
-	# 	if entry["fileId"] in dirty_entries:
-	# 		pass # both local and remote is dirty, ask user
-	# 	else: 
-	# 		gdrive_download_file(user, entry.id, None)
-
-	for entry in dirty_entries:
-		full_path = join(user.root_path, entry.path)
-		if not exists(full_path):  # file was deleted
-			if entry.gdrive_id:
-				gdrive_delete(user, entry.gdrive_id)
-			entry.delete()
-		elif entry.gdrive_id == "":  # not yet uploaded
-			if entry.parent_gdrive_id == "":
-				parent_id = gdrive_get_parent_id(user, entry.path)
-				if parent_id == "":
-					dirty_entries.append(entry)
-					continue
-			else:
-				parent_id = entry.parent_gdrive_id
-			gdrive_upload_file(user, entry)
-		else:  # file or folder was modified
-			gdrive_upload_file(user, entry)
-		entry.is_dirty = False
-		entry.save()
-
-
-def gdrive_delete(user, index_entry):  # works on folders too
-	session = create_session(user)
-	url = "https://www.googleapis.com/drive/v3/files/{}".format(index_entry.gdrive_id)
-	res = session.delete(url)
-	index_entry.delete()
-	return res
-
-
-def gdrive_download_file(user, index_entry):  # TODO: what about folders?
-	session = create_session(user)
-	url = "https://www.googleapis.com/drive/v3/files/{}?alt=media".format(index_entry.gdrive_id)
-	res = session.get(url)
-	if res.status_code == 200:
-		dest = join(user.root_path, index_entry.path)
-		with open(dest, 'wb') as f:
-			f.write(res.content)
-	return res
-
-
-def gdrive_upload_file(user, index_entry):  # TODO: what about folders?
-	full_path = join(user.root_path, index_entry.path)
-	session = create_session(user)
-	session.headers["Content-type"] = "application/json; charset=UTF-8"
-	session.headers["Content-Length"] = str(os_getsize(full_path))
-
-	parents = [index_entry.parent_gdrive_id] if index_entry.parent_gdrive_id else []
-	body = json.dumps({
-		'name': basename(index_entry.path),
-		'parents[]': parents
-	})
-
-	if index_entry.gdrive_id == "":  # first upload
-		url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable"
-		res = session.post(url, body)
-	else:  # update
-		url = "https://www.googleapis.com/upload/drive/v3/files/{}?uploadType=resumable" \
-			.format(index_entry.gdrive_id)
-		res = session.patch(url, body)
-
-	session_uri = res.headers['location']  # should save this somewhere to resume
-	del session.headers["Content-type"]
-	with open(full_path, 'rb') as f:
-		body = f.read()
-	res = session.put(session_uri, body).json()
-	index_entry.gdrive_id = res["id"]
-	index_entry.save()
-	return res
-
-
-def gdrive_move_file(user, index_entry, new_parent_id):
-	session = create_session(user)
-	session.headers["Content-type"] = "application/json; charset=UTF-8"
-	url = "https://www.googleapis.com/drive/v3/files/{}?addParents={}&removeParents={}" \
-		.format(index_entry.gdrive_id, new_parent_id, index_entry.parent_gdrive_id)
-	index_entry.parent_gdrive_id = new_parent_id
-	index_entry.save()
-	res = session.patch(url, json.dumps({}))
-	return res
-
-
-def gdrive_changes_start_page(user):
-	session = create_session(user)
-	url = "https://www.googleapis.com/drive/v3/changes/startPageToken"
-	res = session.get(url).json()
-	user_tokens = Google_Tokens.objects.get(user=user)
-	user_tokens.gdrive_changes_token = res["startPageToken"]
-	user_tokens.save()
-	return res
-
-
-def gdrive_changes_list(user):
-	user_tokens = Google_Tokens.objects.get(user=user)
-	session = create_session(user)
-	url = "https://www.googleapis.com/drive/v3/changes"
-	params = {
-		"pageToken": user_tokens.gdrive_changes_token,
-		"restrictToMyDrive": True}
-	res = session.get(url, params=params).json()
-	user_tokens.gdrive_changes_token = res["newStartPageToken"]
-	user_tokens.save()
-	return res["changes"]
-
-
-def gdrive_list(user):
-	session = create_session(user)
-	url = "https://www.googleapis.com/drive/v3/files"
-	res = session.get(url).json()
-	return res
-
-
-def gdrive_get_parent_id(user, relative_path):
-	parent_path = os_split(relative_path)[0]
+@login_required
+def get_google_sync_status(request, num_downloaded=-1):
 	try:
-		possible_parent = GDrive_Index.objects.get(user=user, path=parent_path)
-		parent_id = possible_parent.gdrive_id
-	except GDrive_Index.DoesNotExist:
-		parent_id = None
-	return parent_id
-"""
-
-# def gdrive_get_info(user, file_id):
-# 	session = create_session(user)
-# 	url = "https://www.googleapis.com/drive/v3/files/{}?fields=parents".format(file_id)
-# 	res = session.get(url).json()
-# 	return res
-
-
-# def check_gphotos_soft(user):
-# 	local_photos = GoogleSync.objects.filter(
-# 		user=user, gphotos=True, is_dir=False
-# 		).only("path")
-
-# 	local_photos = [basename(photo.path) for photo in local_photos]
-# 	remote_photos = list_photos(user)
-# 	folder = join(user.root_path, user.pics_default)
-# 	for photo in remote_photos:
-# 		if not photo["filename"] in local_photos: # perhaps I should use google id
-# 			print('downloading ', photo["filename"])
-# 			req = requests.get(photo["baseUrl"])
-# 			if req.status_code==200:
-# 				dest = join(folder, photo["filename"])
-# 				with open(dest, 'wb') as f:
-# 					f.write(req.content)
+		gp_data = GooglePhotosSync.objects.get(user=request.user)
+		if gp_data.last_sync:
+			last = readable_delta(timezone.now() - gp_data.last_sync)+"ago"
+		else:
+			last = "NEVER"
+		res = {
+			"last_sync": last,
+			"last_sync_result": gp_data.last_sync_result,
+			"num_downloaded": num_downloaded
+		}
+	except GooglePhotosSync.DoesNotExist:
+		res = {"last_sync": "NO_CONSENT"}
+	return JsonResponse(res)
 
 
-def list_photos(user):
-	tokens = GoogleTokens.objects.get(user=user)
-	tokens.last_pic = "gluglu" # REMOVE BEFORE FLIGHT
-	session = create_session(tokens)
+@login_required
+def google_sync_now(request):
+	res = fetch_new_photos(request.user)
+	if res<0: redirect('/cloud/google-consent')
+	return get_google_sync_status(request, res)
+
+
+def fetch_new_photos(user):
+	gp_data = GooglePhotosSync.objects.get(user=user)
+	session = create_session(gp_data.g_token, gp_data.g_refresh_token)
+	new_photos = list_new_photos(session, gp_data)
+	if new_photos == False:
+		gp_data.last_sync_result = False
+		gp_data.last_sync = timezone.now()
+		gp_data.save()
+		return -1
+	download_photos(session, gp_data.pics_folder, new_photos)
+	session.close()
+	gp_data.last_sync_result = True
+	gp_data.save()
+	return len(new_photos)
+
+def list_new_photos(session, gp_data):
+	#gp_data.last_pic = "gluglu" # REMOVE BEFORE FLIGHT
 	url = 'https://photoslibrary.googleapis.com/v1/mediaItems'
 	params = {
 		"pageSize": 10,
@@ -234,13 +81,14 @@ def list_photos(user):
 	}
 
 	first_id = None
-	last_id = tokens.last_pic
+	last_id = gp_data.last_pic
 	to_download = []
 	quack = True
 
 	while quack:
-		page = session.get(url, params=params).json()
-		for photo in page['mediaItems']:
+		page = session.get(url, params=params)
+		if page.status_code != 200: return False
+		for photo in page.json()['mediaItems']:
 			if not first_id: first_id = photo["id"]
 			if photo["id"] == last_id:
 				quack = False
@@ -250,37 +98,66 @@ def list_photos(user):
 		else: break
 
 	if first_id:
-		tokens.last_pic = first_id
-		tokens.save()
+		gp_data.last_pic = first_id
+		gp_data.last_sync = datetime.now()
+		gp_data.save()
 
-	session.close()
 	return to_download
 
 
-def download_photos(user, to_download: list):
-	tokens = GoogleTokens.objects.get(user=user)
-	session = create_session(tokens)
+def download_photos(session, folder, to_download: list):
 	for photo_url, photo_name in to_download:
 		res = session.get(photo_url+"=d")
 		if res.status_code == 200:
-			dest = join(user.pics_default, photo_name)
+			dest = join(folder, photo_name)
 			with open(dest, 'wb') as f:
 				f.write(res.content)
 
-# def list_albums(user):
-# 	session = create_session(user)
-# 	url = 'https://photoslibrary.googleapis.com/v1/albums'
-# 	params = {
-# 		"pageSize": 50,
-# 		"pageToken": ""
-# 	}
-# 	result = []
-# 	while True:
-# 		page = session.get(url, params=params).json()
-# 		result += page['albums']
-# 		if 'nextPageToken' in page:
-# 			params["pageToken"] = page["nextPageToken"]
-# 		else:
-# 			break
-# 	session.close()
-# 	return result
+
+@login_required
+def google_consent(request):
+	scopes = [
+		'https://www.googleapis.com/auth/photoslibrary.readonly'
+	]
+	flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
+		'client_secret.json',
+		scopes=scopes)
+	flow.redirect_uri = 'http://localhost/cloud/oauth2callback'
+	authorization_url, state = flow.authorization_url(
+		access_type='offline',
+		include_granted_scopes='true')
+
+	user_tokens = GooglePhotosSync.objects.get_or_create(user=request.user)[0]
+	user_tokens.g_token = flow.code_verifier
+	user_tokens.save()
+
+	return redirect(authorization_url)
+
+
+def oauth2_callback(request):
+	user_tokens = GooglePhotosSync.objects.get(user=request.user)
+	flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
+		'client_secret.json',
+		scopes=None)
+	flow.code_verifier = user_tokens.g_token
+	flow.redirect_uri = 'http://localhost/cloud/oauth2callback'
+	flow.fetch_token(code=request.GET['code'])
+
+	user_tokens.g_token = flow.credentials.token
+	user_tokens.g_refresh_token = flow.credentials.refresh_token
+	user_tokens.pics_folder = get_user_root(request.user)+"/Pictures"
+	user_tokens.last_sync_result = True
+	user_tokens.save()
+
+	return redirect('/cloud')
+
+
+def readable_delta(delta):
+	ts = [delta.days] + [0] * 3
+	ts[1], ts[2] = divmod(delta.seconds, 3600)
+	ts[2] //= 60
+	ts_readable = ""
+	for i, s in enumerate(["d", "h", "m"]):
+		if ts[i] == 0 and i < 2: continue
+		ts_readable += str(ts[i]) + s + " "
+	return ts_readable
