@@ -43,10 +43,11 @@ def get_google_sync_status(request, num_downloaded=-1):
 		res = {
 			"last_sync": last,
 			"last_sync_result": gp_data.last_sync_result,
-			"num_downloaded": num_downloaded
+			"num_downloaded": num_downloaded,
+			"pics_folder": gp_data.pics_folder
 		}
 	except GooglePhotosSync.DoesNotExist:
-		res = {"last_sync": "NO_CONSENT"}
+		res = {"last_sync": "NO_CONSENT", "last_sync_result": None}
 	return JsonResponse(res)
 
 
@@ -66,14 +67,15 @@ def fetch_new_photos(user):
 		gp_data.last_sync = timezone.now()
 		gp_data.save()
 		return -1
-	download_photos(session, gp_data.pics_folder, new_photos)
+	folder = get_user_root(user) + gp_data.pics_folder
+	download_photos(session, folder, new_photos)
 	session.close()
 	gp_data.last_sync_result = True
 	gp_data.save()
 	return len(new_photos)
 
 def list_new_photos(session, gp_data):
-	#gp_data.last_pic = "gluglu" # REMOVE BEFORE FLIGHT
+	gp_data.last_pic = "gluglu" # REMOVE BEFORE FLIGHT
 	url = 'https://photoslibrary.googleapis.com/v1/mediaItems'
 	params = {
 		"pageSize": 10,
@@ -144,9 +146,10 @@ def oauth2_callback(request):
 	flow.fetch_token(code=request.GET['code'])
 
 	user_tokens.g_token = flow.credentials.token
-	user_tokens.g_refresh_token = flow.credentials.refresh_token
-	user_tokens.pics_folder = get_user_root(request.user)+"/Pictures"
-	user_tokens.last_sync_result = True
+	if flow.credentials.refresh_token:
+		user_tokens.g_refresh_token = flow.credentials.refresh_token
+	if not user_tokens.pics_folder:
+		user_tokens.pics_folder = "/Pictures"
 	user_tokens.save()
 
 	return redirect('/cloud')

@@ -6,20 +6,24 @@
 		
 		<link rel="stylesheet" href="{% static "cloud/style.css" %}">
 		<script type = "text/javascript" src = "{% static "cloud/jquery-3.2.1.min.js" %}"></script>
+        <script type = "text/javascript" src = "{% static "cloud/cloud_class.js" %}"></script>
 		<script type = "text/javascript" src = "{% static "cloud/cloud.js" %}"></script>
-        <link rel = "icon" type = "image/png" href = "{% static "cloud/pics/spaghetti.png" %}">
+        <link rel = "icon" type = "image/png" href = "{% static "cloud/pics/favs/spaghetti.png" %}">
 	</head>
 	<body>
         <div id="navbar" class="row">
             <div id="nav-logo">
-                <img src="/static/cloud/pics/spaghetti_big.png">&nbsp PolpettaCloud
+                <img src="/static/cloud/pics/spaghetti_big.png">&nbsp <span>PolpettaCloud</span>
             </div>
             <div id="nav-path"></div>
+            <div id="nav-trash" class="row">
+                <a href="/cloud/trash/"><img src="/static/cloud/pics/trash_white.png"></a>
+            </div>
             <div id="nav-user" class="row">
                 <div id="user-avatar"><img src="/cloud/get-avatar"></div>
                 <div id="user-name">{{ user.get_username }}</div>
                 <div id="logout">
-                    <a href="/cloud/logout/"><img src="/static/cloud/pics/logout.png"></a>
+                    <a href="/cloud/logout/"><img src="/static/cloud/pics/logout_white.png"></a>
                 </div>
             </div>
         </div>

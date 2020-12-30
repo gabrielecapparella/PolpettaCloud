@@ -13,6 +13,10 @@
 	--buttons-text: #000000;
 }
 
+html {
+	background-color: var(--main-bg);
+}
+
 body {
 	display: flex;
 	flex-direction: row;
@@ -83,7 +87,6 @@ a {
 	flex-direction: row;
 	align-items: flex-start;
 	width: 100%;
-	background-color: var(--main-bg);
 }
 
 #upload-files-hidden, #upload-folder-hidden {
@@ -109,10 +112,11 @@ a {
 }
 
 #nav-logo {
-	width: 150px;
+	width: 180px;
 	display: flex;
 	justify-content: center;
 	align-items: center;
+	font-size: 20px;
 }
 
 #nav-logo > img {
@@ -122,7 +126,7 @@ a {
 
 #nav-path {
 	width: 100%;
-	padding: 0 20px;
+	padding: 0;
 	display: flex;
 	flex-direction: row;
 	justify-content: flex-start;
@@ -138,6 +142,18 @@ a {
 	align-items: center;
 	display: flex;
 	background-color: var(--nav-button-bg);
+	cursor: pointer;
+}
+#nav-trash {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin: 0 10px;
+}
+
+#nav-trash img {
+	height: 25px;
+	width: auto;
 	cursor: pointer;
 }
 
