@@ -45,8 +45,12 @@ a {
 	color: green;
 }
 
-.checked-entry {
-	background-color: #a7d7f7;
+.hidden {
+	display: none;
+}
+
+.checked-entry, .checked-menu {
+	background-color: #a7d7f7 !important;
 }
 
 .type-dir {
@@ -78,6 +82,10 @@ a {
 .tile {
 	background-color: var(--tiles-bg);
 	border: 1px solid var(--tiles-border);
+	border-radius: 3px;
+}
+
+.tilea {
 	border-radius: 3px;
 }
 
@@ -144,7 +152,8 @@ a {
 	background-color: var(--nav-button-bg);
 	cursor: pointer;
 }
-#nav-trash {
+
+/*#nav-trash {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -155,7 +164,7 @@ a {
 	height: 25px;
 	width: auto;
 	cursor: pointer;
-}
+}*/
 
 #nav-user {
 	margin: 3px;
@@ -172,7 +181,6 @@ a {
 #user-avatar > img {
 	height: 35px;
 	width: 35px;
-	/*border: 1px solid var(--secondary);*/
 	border-radius: 3px;
 }
 
@@ -183,11 +191,35 @@ a {
 }
 
 
+/*MENU*/
+
+#menu {
+	padding: 0 0;
+	margin: 0 0;
+	justify-content: center;
+}
+
+#menu > div {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin: 3px 10px;
+	width: 40px;
+	height: 40px;
+/*	border-radius: 2px;
+	border: 1px solid var(--nav-bg);*/
+}
+
+#menu  img {
+	width: 30px;
+	height: 30px;
+}
+
 /*INFO*/
 
 #info {
 	padding: 0;
-	margin: 0;
+	margin: 10px 0;
 }
 
 #info-size {
@@ -279,6 +311,10 @@ a {
 	margin: 2px 5px;
 	color: var(--buttons-text);
 	cursor: pointer;
+}
+
+#perm-delete {
+	background-color: red; !important;
 }
 
 

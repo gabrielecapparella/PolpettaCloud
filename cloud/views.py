@@ -1,15 +1,14 @@
-import re
-
 from django.shortcuts import render, redirect
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, FileResponse
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 import os
 from datetime import datetime
-from shutil import copy as sh_copy
+from shutil import copy2 as sh_copy, copytree, make_archive
+import zipfile
+from tempfile import TemporaryDirectory
 
-from cloud.models import GooglePhotosSync
 
 CLOUD_ROOT = settings.CLOUD_ROOT
 
@@ -40,9 +39,8 @@ def logout_action(request):
 
 @login_required
 def get_folder(request):
-	user_root = get_user_root(request.user)
 	try:
-		folder = user_root + request.POST['folder']
+		folder = get_full_path(request.user, request.POST['folder'])
 	except KeyError as e:
 		print(e)
 		return HttpResponse(status=400)
@@ -57,13 +55,30 @@ def get_folder(request):
 
 
 @login_required
-def delete(request):  # what if it has to delete a folder, like pics_default?
-	user_root = get_user_root(request.user)
+def perm_delete(request):
 	try:
-		folder = user_root + request.POST['folder']
-		for path in request.POST.getlist('to_delete[]'):  # path is relative to user root
-			old = user_root + path
-			new = os.path.join(get_user_trash(request.user), os.path.basename(path))
+		folder = get_full_path(request.user, request.POST['folder'])
+		for filename in request.POST.getlist('to_delete[]'):
+			os.remove(os.path.join(folder, filename))
+		files = scan_folder(folder)
+		return JsonResponse(files, safe=False)
+
+	except KeyError as e:
+		print(e)
+		return HttpResponse(status=400)
+
+	except OSError as e:
+		print(e)
+		return HttpResponse(status=422)
+
+
+@login_required
+def delete(request):
+	try:
+		folder = get_full_path(request.user, request.POST['folder'])
+		for filename in request.POST.getlist('to_delete[]'):
+			old = os.path.join(folder, filename)
+			new = os.path.join(get_user_trash(request.user), filename)
 			while os.path.exists(new): new += '.copy'
 			os.rename(old, new)
 
@@ -82,12 +97,33 @@ def delete(request):  # what if it has to delete a folder, like pics_default?
 
 
 @login_required
-def rename(request):
-	user_root = get_user_root(request.user)
+def restore(request):
 	try:
-		folder = user_root + request.POST['folder']
-		old = user_root + request.POST['old_path']
-		new = user_root + request.POST['new_path']
+		folder = get_full_path(request.user, request.POST['folder'])
+		for filename in request.POST.getlist('to_restore[]'):
+			old = os.path.join(folder, filename)
+			new = os.path.join(get_user_root(request.user), filename)
+			while os.path.exists(new): new += '.copy'
+			os.rename(old, new)
+
+		files = scan_folder(folder)
+		return JsonResponse(files, safe=False)
+
+	except KeyError as e:
+		print(e)
+		return HttpResponse(status=400)
+
+	except OSError as e:
+		print(e)
+		return HttpResponse(status=422)
+
+
+@login_required
+def rename(request):
+	try:
+		folder = get_full_path(request.user, request.POST['folder'])
+		old = os.path.join(folder, request.POST['old_path'])
+		new = os.path.join(folder, request.POST['new_path'])
 		while os.path.exists(new): new += '.copy'
 		os.rename(old, new)
 
@@ -105,9 +141,8 @@ def rename(request):
 
 @login_required
 def create_folder(request):
-	user_root = get_user_root(request.user)
 	try:
-		folder = user_root + request.POST['folder']
+		folder = get_full_path(request.user, request.POST['folder'])
 		full_path = os.path.join(folder, request.POST['name'])
 		os.makedirs(full_path)
 
@@ -125,11 +160,11 @@ def create_folder(request):
 
 @login_required
 def copy(request):
-	user_root = get_user_root(request.user)
 	try:
+		folder = get_full_path(request.user, request.POST['folder'])
 		paths = []
-		for path in request.POST.getlist('to_copy[]'):
-			paths.append(user_root + path)
+		for filename in request.POST.getlist('to_copy[]'):
+			paths.append(os.path.join(folder, filename))
 	except KeyError as e:
 		print(e)
 		return HttpResponse(status=400)
@@ -140,11 +175,11 @@ def copy(request):
 
 @login_required
 def cut(request):
-	user_root = get_user_root(request.user)
 	try:
+		folder = get_full_path(request.user, request.POST['folder'])
 		paths = []
-		for path in request.POST.getlist('to_cut[]'):
-			paths.append(user_root + path)
+		for filename in request.POST.getlist('to_cut[]'):
+			paths.append(os.path.join(folder, filename))
 	except KeyError as e:
 		print(e)
 		return HttpResponse(status=400)
@@ -155,19 +190,18 @@ def cut(request):
 
 @login_required
 def paste(request):
-	user_root = get_user_root(request.user)
 	try:
-		destination = user_root + request.POST['folder']
+		folder = get_full_path(request.user, request.POST['folder'])
 		mode = request.session['clipboard_mode']
 		for path in request.session['clipboard']:
-			new_path = os.path.join(destination, os.path.basename(path))
+			new_path = os.path.join(folder, os.path.basename(path))
 			while os.path.exists(new_path): new_path += '.copy'
 			if mode == 'cut':
 				os.rename(path, new_path)
 			elif mode == 'copy':
 				sh_copy(path, new_path)
 		if mode == 'cut': del request.session['clipboard']
-		files = scan_folder(destination)
+		files = scan_folder(folder)
 		return JsonResponse(files, safe=False)
 
 	except KeyError as e:
@@ -181,8 +215,7 @@ def paste(request):
 
 @login_required
 def upload_files(request):
-	user_root = get_user_root(request.user)
-	folder = user_root + request.POST['folder']
+	folder = get_full_path(request.user, request.POST['folder'])
 	for uploaded_file in request.FILES.getlist('files[]'):
 		full_path = os.path.join(folder, uploaded_file.name)
 		with open(full_path, 'wb+') as f:
@@ -202,6 +235,54 @@ def upload_folder(request):  # TODO
 def get_file(request, file_path):
 	response = HttpResponse()
 	response['X-Accel-Redirect'] = '/files/'+str(request.user.id)+"/files/"+file_path
+	return response
+
+
+@login_required
+def download(request):
+	try:
+		folder = get_full_path(request.user, request.POST['folder'])
+		to_download = request.POST.getlist('to_download[]')
+		num_files = len(to_download)
+
+		if num_files == 0: return HttpResponse(status=422)
+		if num_files == 1:
+			file_path = os.path.join(folder, to_download[0])
+			if os.path.isfile(file_path):
+				response = FileResponse(open(file_path, 'rb'))
+				response["FILENAME"] = to_download[0]
+			else:
+				with TemporaryDirectory() as temp_dir:
+					zip_path = make_archive(os.path.join(temp_dir, to_download[0]), "zip", file_path)
+					response = FileResponse(open(zip_path, 'rb'))
+					response["FILENAME"] = to_download[0]+".zip"
+		else:
+			with TemporaryDirectory() as temp_dir:
+				tmp_files = os.path.join(temp_dir, "files")
+				os.mkdir(tmp_files)
+				for f in to_download:
+					f_path = os.path.join(folder, f)
+					if os.path.isfile(f_path): sh_copy(f_path, tmp_files)
+					else: copytree(f_path, os.path.join(tmp_files, f))
+				zip_path = make_archive(os.path.join(temp_dir, "archive"), "zip", tmp_files)
+				response = FileResponse(open(zip_path, 'rb'))
+				response["FILENAME"] = "download.zip"
+
+		return response
+
+	except KeyError as e:
+		print(e)
+		return HttpResponse(status=400)
+
+	except OSError as e:
+		print(e)
+		return HttpResponse(status=422)
+
+
+@login_required
+def get_trash(request, file_path):
+	response = HttpResponse()
+	response['X-Accel-Redirect'] = '/files/'+str(request.user.id)+"/trash/"+file_path
 	return response
 
 
@@ -256,3 +337,10 @@ def get_user_root(user):
 
 def get_user_trash(user):
 	return os.path.join(CLOUD_ROOT, str(user.id)+"/trash")
+
+
+def get_full_path(user, path):
+	if path.startswith("files://"):
+		return path.replace("files://", CLOUD_ROOT + str(user.id) + "/files/")
+	elif path.startswith("trash://"):
+		return path.replace("trash://", CLOUD_ROOT + str(user.id) + "/trash/")

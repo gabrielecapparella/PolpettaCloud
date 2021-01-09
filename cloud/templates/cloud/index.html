@@ -16,9 +16,6 @@
                 <img src="/static/cloud/pics/spaghetti_big.png">&nbsp <span>PolpettaCloud</span>
             </div>
             <div id="nav-path"></div>
-            <div id="nav-trash" class="row">
-                <a href="/cloud/trash/"><img src="/static/cloud/pics/trash_white.png"></a>
-            </div>
             <div id="nav-user" class="row">
                 <div id="user-avatar"><img src="/cloud/get-avatar"></div>
                 <div id="user-name">{{ user.get_username }}</div>
@@ -29,6 +26,20 @@
         </div>
         <div id="main-container">
             <div id="side-column" class="column">
+                <div id="menu" class="row tile">
+                    <div id="menu-files" class="tilea">
+                        <a href="/cloud/-/"><img src="/static/cloud/pics/menu_blu/cloud.png"></a>
+                    </div>
+                    <div id="menu-trash" class="tilea">
+                        <a href="/cloud/--/"><img src="/static/cloud/pics/menu_blu/trash.png"></a>
+                    </div>
+                    <div id="menu-favs" class="tilea">
+                        <a href="/cloud/---/"><img src="/static/cloud/pics/menu_blu/bookmark.png"></a>
+                    </div>
+                    <div id="menu-backup" class="tilea">
+                        <a href="/cloud/----/"><img src="/static/cloud/pics/menu_blu/archive.png"></a>
+                    </div>
+                </div>
                 <div id="info" class="column tile">
                     <div id="info-name">-</div>
                     <div id="info-img">
@@ -61,24 +72,27 @@
             </div>
             <div id="main" class="column tile">
                 <div id="buttons">
-                    <div id="parent" class="button">Parent</div>
-                    <div id="delete" class="button">Delete</div>
-                    <div id="rename" class="button">Rename</div>
-                    <div id="create-folder" class="button">Create Folder</div>
-                    <div id="copy" class="button">Copy</div>
-                    <div id="cut" class="button">Cut</div>
+                    <div id="parent" class="button hidden">Parent</div>
+                    <div id="delete" class="button hidden">Delete</div>
+                    <div id="perm-delete" class="button hidden">Delete</div>
+                    <div id="rename" class="button hidden">Rename</div>
+                    <div id="create-folder" class="button hidden">Create Folder</div>
+                    <div id="copy" class="button hidden">Copy</div>
+                    <div id="cut" class="button hidden">Cut</div>
                     {% if 'clipboard' in request.session %}
                     <div id="paste" class="button">Paste</div>
                     {% else %}
                     <div id="paste" class="button">Paste</div>
                     {% endif %}
-                    <div id="download" class="button">Download</div>
-                    <div id="show-table" class="button">Table</div>
-                    <div id="show-grid" class="button">Grid</div>
+                    <div id="download" class="button hidden">Download</div>
+                    <div id="restore" class="button hidden">Restore</div>
+                    <div id="show-table" class="button hidden">Table</div>
+                    <div id="show-grid" class="button hidden">Grid</div>
                     <input id="upload-files-hidden" type="file" name="files" multiple>
                     <input id="upload-folder-hidden" type="file" name="files" multiple>
-                    <div id="upload-files" class="button">Upload Files</div>
-                    <div id="upload-folder" class="button">Upload Folder</div>
+                    <div id="upload-files" class="button hidden">Upload Files</div>
+                    <div id="upload-folder" class="button hidden">Upload Folder</div>
+                    <a id="downloader" class="hidden"></a>
                 </div>
                 <div id="table-container">
                     <table id="table-files">

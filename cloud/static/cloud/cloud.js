@@ -1,18 +1,36 @@
-let current_folder = window.location.pathname
-	.replace(/^(\/cloud\/)/, "").replace(/^(-)/, "").replace(/\/$/, "");
+let current_folder = window.location.pathname.replace(/^(\/cloud\/)/, "").replace(/\/$/, "");
+let trash;
 
 $(document).ready(function() {
+	if (current_folder.startsWith("--")) {
+		trash = true;
+		current_folder = current_folder.replace(/^(--)/, "");
+		$('#menu-trash').addClass("checked-menu");
+	} else {
+		trash = false;
+		current_folder = current_folder.replace(/^(-)/, "");
+		$('#menu-files').addClass("checked-menu");
+	}
+	current_folder = current_folder.replace(/^\//, "");
+
+	console.log("current_folder: "+current_folder);
+
 	if (current_folder) $('#parent').show();
 	else $('#parent').hide();
-
-	$('#delete, #rename, #copy, #cut, #download').hide();
+	let root = "trash://";
+	if (!trash) {
+		$('#upload-files, #upload-folder').show();
+		root = "files://";
+	} else {
+		$('#paste').hide();
+	}
 
 	$.ajax({
 		type: "POST",
 		url: "/cloud/get-folder",
-		data: { 'folder': current_folder },
+		data: { 'folder': root + current_folder },
 		success: function(data) {
-			pc = new PolpettaCloud(current_folder, "grid", data);
+			pc = new PolpettaCloud(root, current_folder, "grid", data, trash);
 			set_buttons_triggers();
 		}
 	});
@@ -32,10 +50,12 @@ $(document).ready(function() {
 	});
 
 	$('#main').on("dblclick", ".type-dir", function() {
+		let t = "";
+		if (trash) t = "-";
 		if (!current_folder) {
-			window.location.href = window.location.origin+"/cloud/-/"+$(this).html();
+			window.location.href = window.location.origin+"/cloud/-"+t+"/"+$(this).html();
 		} else {
-			window.location.href = window.location.origin+"/cloud/-"+current_folder+"/"+$(this).html();
+			window.location.href = window.location.origin+"/cloud/-"+t+"/"+current_folder+"/"+$(this).html();
 		}
 	});
 
@@ -60,6 +80,12 @@ function set_buttons_triggers() {
 
 	$('#delete').click(pc.action_delete);
 
+	$('#restore').click(pc.action_restore);
+
+	$('#perm-delete').click(pc.action_perm_delete);
+
+	$('#download').click(pc.action_download);
+
 	$('#rename').click(pc.action_rename);
 
 	$('#create-folder').click(pc.action_create_folder);
@@ -74,7 +100,7 @@ function set_buttons_triggers() {
 		$('#upload-files-hidden').trigger('click');
 	});
 
-	$('#upload-files-hidden').change(pc.action_upload_file());
+	//$('#upload-files-hidden').change(pc.action_upload_file());
 
 	$('#show-grid').click(function(){
 		pc.set_visualization_mode("grid");

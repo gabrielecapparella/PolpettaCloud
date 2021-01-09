@@ -10,6 +10,8 @@ urlpatterns = [
 	path('', views.index),
 	path('-/<path:folder>', views.index),
 	path('-/', RedirectView.as_view(url='/cloud')),
+	path('--/<path:folder>', views.index),
+	path('--/', views.index),
 
 	path('login-action/', views.login_action),
 	path('login/', views.login_user),
@@ -18,6 +20,9 @@ urlpatterns = [
 
 	path('get-folder', views.get_folder),
 	path('delete', views.delete),
+	path('restore', views.restore),
+	path('perm-delete', views.perm_delete),
+	path('download', views.download),
 	path('rename', views.rename),
 	path('create-folder', views.create_folder),
 	path('copy', views.copy),
@@ -26,6 +31,7 @@ urlpatterns = [
 	path('upload-files', views.upload_files),
 
 	path('get-file/<path:file_path>', views.get_file),
+	path('get-trash/<path:file_path>', views.get_trash),
 
 	path('test', google_api.test_endpoint),
 	path('gp-sync', cloud.google_api.google_sync_now),

@@ -1,30 +1,34 @@
 let pc;
 class PolpettaCloud {
-    constructor(current_folder, visualization_mode, files) {
+    constructor(root, current_folder, visualization_mode, files, trash) {
         pc = this;
         this.current_folder = current_folder;
         this.files = files;
+        this.trash = trash;
+        this.root = root;
+        this.update_files(files, false);
         this.set_visualization_mode(visualization_mode);
-        this.update_files(files);
         this.fill_info();
         this.build_path_bar();
     }
 
-    update_files(new_files) {
+    update_files(new_files, fill=true) {
         pc.files = new_files;
         pc.last_selected_index = -1;
         pc.selected_entries = [];
         pc.selected_indexes = [];
         pc.fill_info();
-        if (pc.visualization_mode==="table") pc.fill_table();
-        else pc.fill_grid();
+        if (fill) {
+			if (pc.visualization_mode === "table") pc.fill_table();
+			else pc.fill_grid();
+		}
     }
 
     update_folder() {
 		$.ajax({
 			type: "POST",
 			url: "/cloud/get-folder",
-			data: { 'folder': pc.current_folder },
+			data: { 'folder': pc.root+pc.current_folder },
 			success: pc.update_files
 		});
 	}
@@ -81,7 +85,7 @@ class PolpettaCloud {
         let name, img;
         let size = 0;
         if (pc.selected_indexes.length < 1) {
-            name = pc.current_folder || "/";
+            name = pc.current_folder;
             img = "/static/cloud/pics/icons/folder.png";
             pc.files.forEach(function (entry) {
                 size += entry["raw_size"];
@@ -113,7 +117,8 @@ class PolpettaCloud {
 		if (filetype==="dir") {
 			return '/static/cloud/pics/icons/folder.png';
 		} else if (filename.endsWith(".jpg") || filename.endsWith(".png")) {
-			return '/cloud/get-file'+pc.current_folder+"/"+filename;
+			if (trash) return '/cloud/get-trash/'+pc.current_folder+"/"+filename;
+			return '/cloud/get-file/'+pc.current_folder+"/"+filename;
 		} else if (filename.endsWith(".pdf")) {
 			return '/static/cloud/pics/icons/pdf.png';
 		} else if (filename.endsWith(".txt")) {
@@ -125,14 +130,18 @@ class PolpettaCloud {
 
 	build_path_bar() {
 		let nav_path = $("#nav-path");
-		let cur_path = "";
 		nav_path.html("");
-		pc.current_folder.split("/").forEach(function(folder) {
+		let cur_path = "";
+		let path = pc.current_folder;
+		if (path.length>0) path = "/"+path;
+		path.split("/").forEach(function(folder) {
 			cur_path += folder+"/";
 			nav_path.append($("<div class='nav-path-button' data-path='"+cur_path+"'>").text(folder+"/"));
 		});
 		$(".nav-path-button").click(function(){
-			window.location.href = window.location.origin + "/cloud/-" + $(this).attr("data-path");
+			let t = "";
+			if (trash) t = "-";
+			window.location.href = window.location.origin + "/cloud/-" + t + $(this).attr("data-path");
 		});
 	}
 
@@ -156,19 +165,24 @@ class PolpettaCloud {
 		pc.selected_entries = [];
 		pc.selected_indexes = [];
 		$('.checked-entry').each(function() {
-			pc.selected_entries.push(pc.current_folder+"/"+$(this).find(".entry-name").text());
+			pc.selected_entries.push($(this).find(".entry-name").text());
 			pc.selected_indexes.push($(this).index());
 		});
 
 		let l = pc.selected_entries.length;
 		if (l>0) {
-			$('#copy, #cut, #delete, #paste').show();
-			if (l===1) $('#rename').show();
-			else $('#rename').hide();
+			if (pc.trash) {
+				$('#perm-delete, #restore').show();
+			} else {
+				$('#copy, #cut, #delete, #paste, #download').show();
+				if (l === 1) $('#rename').show();
+				else $('#rename').hide();
+			}
 		} else {
-			$('#copy, #cut, #delete, #paste').hide();
+			$('#copy, #cut, #delete, #paste, #rename, #restore').hide();
 		}
 		pc.fill_info();
+		console.log("sel_entries: "+pc.selected_entries);
 	}
 
 	action_delete() {
@@ -177,11 +191,59 @@ class PolpettaCloud {
             url: '/cloud/delete',
             type: 'POST',
             data: {
-                'folder': pc.current_folder,
+                'folder': pc.root+pc.current_folder,
                 'to_delete': pc.selected_entries
             },
             success: pc.update_files
         });
+    }
+
+    action_restore() {
+        if (!pc.selected_entries.length) return;
+        $.ajax({
+            url: '/cloud/restore',
+            type: 'POST',
+            data: {
+                'folder': pc.root+pc.current_folder,
+                'to_restore': pc.selected_entries
+            },
+            success: pc.update_files
+        });
+    }
+
+    action_perm_delete() {
+        if (!pc.selected_entries.length) return;
+        $.ajax({
+            url: '/cloud/perm-delete',
+            type: 'POST',
+            data: {
+                'folder': pc.root+pc.current_folder,
+                'to_delete': pc.selected_entries
+            },
+            success: pc.update_files
+        });
+    }
+
+    action_download() {
+        if (!pc.selected_entries.length) return;
+		let fd = new FormData();
+		fd.append('folder', pc.root+pc.current_folder);
+		pc.selected_entries.forEach(function(entry) {
+			fd.append('to_download[]', entry);
+		});
+		let request = new XMLHttpRequest();
+		request.open("POST", "/cloud/download");
+		request.responseType = 'blob';
+		request.send(fd);
+		request.onload = function(e) {
+			let blob = new Blob([this.response], {type: this.response.type});
+			let hidden_a = $('#downloader');
+			let url = window.URL.createObjectURL(blob);
+			hidden_a.attr('href', url);
+			hidden_a.attr('download', this.getResponseHeader("FILENAME"));
+			hidden_a[0].click();
+			window.URL.revokeObjectURL(url);
+		};
     }
 
     action_rename() {
@@ -193,7 +255,7 @@ class PolpettaCloud {
 				url: '/cloud/rename',
 				type: 'POST',
 				data: {
-					'folder': pc.current_folder,
+					'folder': pc.root+pc.current_folder,
 					'old_path': pc.selected_entries[0],
 					'new_path': new_name
 				},
@@ -209,7 +271,7 @@ class PolpettaCloud {
 				url: '/cloud/create-folder',
 				type: 'POST',
 				data: {
-					'folder': pc.current_folder,
+					'folder': pc.root+pc.current_folder,
 					'name': name
 				},
 				success: pc.update_files
@@ -223,6 +285,7 @@ class PolpettaCloud {
 			url: '/cloud/copy',
 			type: 'POST',
 			data: {
+				'folder': pc.root+pc.current_folder,
 				'to_copy[]': pc.selected_entries
 			},
 			success: function() {
@@ -237,6 +300,7 @@ class PolpettaCloud {
 			url: '/cloud/cut',
 			type: 'POST',
 			data: {
+				'folder': pc.root+pc.current_folder,
 				'to_cut': pc.selected_entries
 			},
 			success: function() {
@@ -249,7 +313,7 @@ class PolpettaCloud {
         $.ajax({ url: '/cloud/paste',
 			type: 'POST',
 			data: {
-				'folder': pc.current_folder
+				'folder': pc.root+pc.current_folder
 			},
 			success: pc.update_files
 		});
@@ -261,7 +325,7 @@ class PolpettaCloud {
 		for (let i = 0; i < files_to_upload.length; i++) {
 			fd.append('files[]', files_to_upload[i]);
 		}
-		fd.append('folder', pc.current_folder);
+		fd.append('folder', pc.root+pc.current_folder);
 
 		$.ajax({
 			url: '/cloud/upload-files',
